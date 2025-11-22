@@ -4,7 +4,7 @@ import LandingPage from './components/LandingPage';
 import DashboardLayout from './components/DashboardLayout';
 import Sidebar from './components/Sidebar';
 import DatabaseInit from './components/DatabaseInit';
-import CrewMemberViewEnhanced from './views/CrewMemberViewEnhanced';
+import CrewMemberViewComplete from './views/CrewMemberViewComplete';
 import SchedulerView from './views/SchedulerView';
 import ControllerView from './views/ControllerView';
 import PayrollViewEnhanced from './views/PayrollViewEnhanced';
@@ -25,7 +25,7 @@ function App() {
 
   const roleViews: Record<UserRole, { component: JSX.Element; title: string }> = {
     'crew-member': {
-      component: <CrewMemberViewEnhanced />,
+      component: <CrewMemberViewComplete />,
       title: 'Crew Member Portal'
     },
     'scheduler': {
