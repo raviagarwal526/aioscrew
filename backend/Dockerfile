@@ -4,14 +4,14 @@ FROM node:20-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package files from backend directory
-COPY backend/package*.json ./
+# Copy package files
+COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for building)
 RUN npm ci
 
-# Copy source code from backend directory
-COPY backend/ .
+# Copy source code
+COPY . .
 
 # Build TypeScript
 RUN npm run build
@@ -21,8 +21,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files from backend directory
-COPY backend/package*.json ./
+# Copy package files
+COPY package*.json ./
 
 # Install production dependencies only
 RUN npm ci --only=production
