@@ -33,9 +33,9 @@ COPY --from=builder /app/dist ./dist
 # Expose port (Railway will set PORT env var, typically 8080)
 EXPOSE 8080
 
-# Health check - use PORT env var (Railway sets this to 8080)
+# Health check - use wget (available in Alpine)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || '3001') + '/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-3001}/health || exit 1
 
 # Start server
 CMD ["npm", "start"]
