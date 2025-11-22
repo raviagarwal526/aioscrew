@@ -85,6 +85,11 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
       <div className="container mx-auto px-4 py-12">
         <div className="text-center mb-12">
+          <img
+            src="/image copy.png"
+            alt="Copa Airlines"
+            className="h-24 w-auto mx-auto mb-6"
+          />
           <h1 className="text-5xl font-bold text-white mb-4">
             Airline Crew Operating System
           </h1>

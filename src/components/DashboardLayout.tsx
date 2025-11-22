@@ -36,7 +36,12 @@ export default function DashboardLayout({ role, onLogout, children, sidebar, tit
               >
                 {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
-              <div>
+              <img
+                src="/image copy.png"
+                alt="Copa Airlines"
+                className="h-12 w-auto"
+              />
+              <div className="border-l border-white/30 pl-4">
                 <h1 className="text-xl font-bold">{title}</h1>
                 <p className="text-xs text-blue-400">Crew Operating System</p>
               </div>
@@ -74,6 +79,11 @@ export default function DashboardLayout({ role, onLogout, children, sidebar, tit
             `}
           >
             <div className="p-6 border-b border-slate-700">
+              <img
+                src="/image copy.png"
+                alt="Copa Airlines"
+                className="h-10 w-auto mb-3"
+              />
               <h2 className="font-bold text-lg">Navigation</h2>
               <p className="text-xs text-slate-400">Crew Operating System</p>
             </div>
