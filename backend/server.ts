@@ -56,18 +56,24 @@ app.use('/api/agents', agentRoutes);
 
 // Serve static frontend files from /public directory
 const publicPath = path.join(__dirname, '..', 'public');
+console.log(`📁 Serving static files from: ${publicPath}`);
 app.use(express.static(publicPath));
 
-// Catch-all route to serve index.html for client-side routing
-// This MUST come after API routes but before 404 handler
+// Catch-all route to serve index.html for client-side routing (SPA support)
+// This MUST come after API routes to ensure API endpoints are not overridden
 app.get('*', (req, res, next) => {
-  // Skip API routes
+  // Skip API routes and health check - let them fall through to 404 if not matched
   if (req.path.startsWith('/api/') || req.path === '/health') {
     return next();
   }
 
-  // Serve index.html for all other routes (SPA routing)
-  res.sendFile(path.join(publicPath, 'index.html'));
+  // Serve index.html for all other routes (client-side routing)
+  res.sendFile(path.join(publicPath, 'index.html'), (err) => {
+    if (err) {
+      console.error('Error serving index.html:', err);
+      res.status(500).send('Error loading application');
+    }
+  });
 });
 
 // Error handling
