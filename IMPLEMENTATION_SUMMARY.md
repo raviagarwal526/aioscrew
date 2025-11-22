@@ -491,4 +491,4 @@ For issues or questions:
 
 ---
 
-**Built with ❤️ using Claude Code**
+**Built with ❤️ using Claude Code | Powered by AI from dCortex**

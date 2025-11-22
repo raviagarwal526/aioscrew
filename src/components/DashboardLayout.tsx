@@ -92,7 +92,7 @@ export default function DashboardLayout({ role, onLogout, children, sidebar, tit
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700">
               <p className="text-xs text-slate-400 text-center">
-                Powered by AI
+                Powered by AI from dCortex
               </p>
             </div>
           </aside>

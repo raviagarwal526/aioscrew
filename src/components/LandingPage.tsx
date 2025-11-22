@@ -94,7 +94,7 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
             Airline Crew Operating System
           </h1>
           <p className="text-xl text-blue-400 mb-2">
-            Powered by AI Intelligence
+            Powered by AI from dCortex
           </p>
           <p className="text-slate-300 max-w-2xl mx-auto">
             Unified platform for airline crew operations across all departments

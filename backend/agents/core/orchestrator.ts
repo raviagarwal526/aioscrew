@@ -1,72 +1,21 @@
 /**
  * Orchestrator Agent
- * Coordinates the execution of specialized agents using LangGraph
+ * Coordinates the execution of specialized agents
  */
 
-import { StateGraph, END } from '@langchain/langgraph';
 import type { AgentInput, AgentResult, ValidationResult } from '../shared/types.js';
 import { runFlightTimeCalculator } from './flight-time-calculator.js';
 import { runPremiumPayCalculator } from './premium-pay-calculator.js';
 import { runComplianceValidator } from './compliance-validator.js';
 
 /**
- * State that flows through the agent graph
+ * Make final decision based on all agent results
  */
-interface OrchestratorState {
-  input: AgentInput;
-  flightTimeResult?: AgentResult;
-  premiumPayResult?: AgentResult;
-  complianceResult?: AgentResult;
-  allResults: AgentResult[];
-  finalDecision?: ValidationResult;
-}
-
-/**
- * Flight Time node - validates trip data
- */
-async function flightTimeNode(state: OrchestratorState): Promise<Partial<OrchestratorState>> {
-  console.log('🔍 Running Flight Time Calculator...');
-  const result = await runFlightTimeCalculator(state.input);
-
-  return {
-    flightTimeResult: result,
-    allResults: [...state.allResults, result]
-  };
-}
-
-/**
- * Premium Pay node - validates amount calculations
- */
-async function premiumPayNode(state: OrchestratorState): Promise<Partial<OrchestratorState>> {
-  console.log('💰 Running Premium Pay Calculator...');
-  const result = await runPremiumPayCalculator(state.input);
-
-  return {
-    premiumPayResult: result,
-    allResults: [...state.allResults, result]
-  };
-}
-
-/**
- * Compliance node - fraud detection and policy validation
- */
-async function complianceNode(state: OrchestratorState): Promise<Partial<OrchestratorState>> {
-  console.log('🛡️ Running Compliance Validator...');
-  const result = await runComplianceValidator(state.input);
-
-  return {
-    complianceResult: result,
-    allResults: [...state.allResults, result]
-  };
-}
-
-/**
- * Final decision node - aggregates results and makes decision
- */
-async function finalDecisionNode(state: OrchestratorState): Promise<Partial<OrchestratorState>> {
+async function makeFinalDecision(
+  input: AgentInput,
+  allResults: AgentResult[]
+): Promise<ValidationResult> {
   console.log('⚖️ Making final decision...');
-
-  const allResults = state.allResults;
 
   // Calculate overall confidence (average of all agent confidences)
   const confidences = allResults
@@ -95,7 +44,8 @@ async function finalDecisionNode(state: OrchestratorState): Promise<Partial<Orch
     .flatMap(r => r.data!.issues);
 
   // Collect contract references from premium pay calculator
-  const contractReferences = state.premiumPayResult?.data?.contractReferences || [];
+  const premiumPayResult = allResults.find(r => r.agentType === 'premium-pay');
+  const contractReferences = premiumPayResult?.data?.contractReferences || [];
 
   // Build recommendation
   let recommendation = '';
@@ -110,8 +60,8 @@ async function finalDecisionNode(state: OrchestratorState): Promise<Partial<Orch
   // Calculate total processing time
   const totalProcessingTime = allResults.reduce((sum, r) => sum + r.duration, 0);
 
-  const finalDecision: ValidationResult = {
-    claimId: state.input.claim.id,
+  return {
+    claimId: input.claim.id,
     overallStatus,
     confidence: overallConfidence,
     processingTime: totalProcessingTime,
@@ -119,49 +69,13 @@ async function finalDecisionNode(state: OrchestratorState): Promise<Partial<Orch
     agentResults: allResults,
     issues: allIssues.length > 0 ? allIssues : undefined,
     contractReferences: contractReferences.length > 0 ? contractReferences : undefined,
-    historicalAnalysis: state.input.historicalData
+    historicalAnalysis: input.historicalData
   };
-
-  return {
-    finalDecision
-  };
-}
-
-/**
- * Build the LangGraph workflow
- */
-function buildGraph() {
-  const workflow = new StateGraph<OrchestratorState>({
-    channels: {
-      input: null,
-      flightTimeResult: null,
-      premiumPayResult: null,
-      complianceResult: null,
-      allResults: null,
-      finalDecision: null
-    }
-  });
-
-  // Add nodes
-  workflow.addNode('flightTime', flightTimeNode);
-  workflow.addNode('premiumPay', premiumPayNode);
-  workflow.addNode('compliance', complianceNode);
-  workflow.addNode('finalDecision', finalDecisionNode);
-
-  // Set entry point
-  workflow.setEntryPoint('flightTime');
-
-  // Define edges
-  workflow.addEdge('flightTime', 'premiumPay');
-  workflow.addEdge('premiumPay', 'compliance');
-  workflow.addEdge('compliance', 'finalDecision');
-  workflow.addEdge('finalDecision', END);
-
-  return workflow.compile();
 }
 
 /**
  * Run the orchestrator to validate a claim
+ * Uses sequential agent execution for reliability
  */
 export async function orchestrateClaimValidation(
   input: AgentInput
@@ -170,21 +84,32 @@ export async function orchestrateClaimValidation(
   const startTime = Date.now();
 
   try {
-    const graph = buildGraph();
+    const allResults: AgentResult[] = [];
 
-    const initialState: OrchestratorState = {
-      input,
-      allResults: []
-    };
+    // Step 1: Flight Time Calculator
+    console.log('🔍 Running Flight Time Calculator...');
+    const flightTimeResult = await runFlightTimeCalculator(input);
+    allResults.push(flightTimeResult);
 
-    const result = await graph.invoke(initialState);
+    // Step 2: Premium Pay Calculator
+    console.log('💰 Running Premium Pay Calculator...');
+    const premiumPayResult = await runPremiumPayCalculator(input);
+    allResults.push(premiumPayResult);
+
+    // Step 3: Compliance Validator
+    console.log('🛡️ Running Compliance Validator...');
+    const complianceResult = await runComplianceValidator(input);
+    allResults.push(complianceResult);
+
+    // Step 4: Make final decision
+    const finalDecision = await makeFinalDecision(input, allResults);
 
     const totalTime = (Date.now() - startTime) / 1000;
     console.log(`✅ Validation complete in ${totalTime.toFixed(2)}s`);
-    console.log(`📊 Decision: ${result.finalDecision!.overallStatus.toUpperCase()}`);
-    console.log(`🎯 Confidence: ${(result.finalDecision!.confidence * 100).toFixed(1)}%\n`);
+    console.log(`📊 Decision: ${finalDecision.overallStatus.toUpperCase()}`);
+    console.log(`🎯 Confidence: ${(finalDecision.confidence * 100).toFixed(1)}%\n`);
 
-    return result.finalDecision!;
+    return finalDecision;
   } catch (error) {
     console.error('❌ Orchestrator error:', error);
 

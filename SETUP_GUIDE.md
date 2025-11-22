@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide will help you set up the complete Aioscrew system with real AI agents powered by Claude Sonnet 4.5 and LangGraph orchestration.
+This guide will help you set up the complete Aioscrew system with real AI agents from dCortex, powered by Claude Sonnet 4.5 and LangGraph orchestration.
 
 **What's New:**
 - ✅ Backend API server with Express
@@ -393,7 +393,7 @@ Plus full Claude API responses for debugging
 ## Summary
 
 You now have:
-- ✅ Real AI agents powered by Claude Sonnet 4.5
+- ✅ Real AI agents from dCortex powered by Claude Sonnet 4.5
 - ✅ LangGraph orchestration
 - ✅ Backend API server
 - ✅ Frontend integration with fallback to mocks

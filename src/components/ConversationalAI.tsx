@@ -70,7 +70,7 @@ export default function ConversationalAI({ role, context }: ConversationalAIProp
         </div>
         <div>
           <h3 className="font-bold text-slate-900">AI Assistant</h3>
-          <p className="text-xs text-gray-600">Powered by AI</p>
+          <p className="text-xs text-gray-600">Powered by AI from dCortex</p>
         </div>
       </div>
 

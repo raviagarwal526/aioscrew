@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Copa Crew Operating System now features **20 AI agents** powered by LangGraph and Claude Sonnet 4.5, integrated directly into the Bolt UI. These agents work in real-time to validate claims, optimize schedules, ensure compliance, and provide intelligent recommendations while humans maintain oversight.
+The Copa Crew Operating System now features **20 AI agents from dCortex**, powered by LangGraph and Claude Sonnet 4.5, integrated directly into the Bolt UI. These agents work in real-time to validate claims, optimize schedules, ensure compliance, and provide intelligent recommendations while humans maintain oversight.
 
 ## Agent Architecture
 
@@ -475,4 +475,4 @@ Sample claims in `src/services/agentService.ts`:
 
 **Status**: ✅ **FULLY INTEGRATED AND OPERATIONAL**
 
-The AI agent system is now live in the Payroll Administration view with real-time processing, detailed validation timelines, and intelligent claim handling. The system demonstrates the full potential of AI-powered crew operations while maintaining human oversight.
+The AI agent system from dCortex is now live in the Payroll Administration view with real-time processing, detailed validation timelines, and intelligent claim handling. The system demonstrates the full potential of AI-powered crew operations while maintaining human oversight.

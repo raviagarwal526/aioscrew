@@ -1,6 +1,6 @@
 # Aioscrew Backend - AI Agent System
 
-Real-time AI-powered pay claim validation using Claude Sonnet 4.5 and LangGraph orchestration.
+Real-time AI-powered pay claim validation from dCortex using Claude Sonnet 4.5 and LangGraph orchestration.
 
 ## Quick Start
 
