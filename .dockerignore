@@ -28,14 +28,7 @@ Thumbs.db
 *.md
 !README.md
 
-# Frontend files (this is backend only)
-src
-public
-index.html
-vite.config.ts
-tailwind.config.js
-postcss.config.js
-
-# Build output from other directories
-dist
-build
+# Backend-specific (backend has its own Dockerfile)
+backend/node_modules
+backend/dist
+backend/.env*
