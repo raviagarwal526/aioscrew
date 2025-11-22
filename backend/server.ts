@@ -5,10 +5,15 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import agentRoutes from './api/routes/agents.js';
 
 // Load environment variables
 config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -16,21 +21,6 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 // Health check endpoint FIRST - before any middleware that could block it
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
-});
-
-// Root endpoint - also before middleware
-app.get('/', (req, res) => {
-  res.json({
-    name: 'Aioscrew AI Agent Backend',
-    version: '1.0.0',
-    status: 'running',
-    endpoints: {
-      health: '/health',
-      agentHealth: '/api/agents/health',
-      validate: 'POST /api/agents/validate',
-      validateClaim: 'POST /api/agents/validate-claim'
-    }
-  });
 });
 
 // Middleware
@@ -64,12 +54,20 @@ app.use((req, res, next) => {
 // API Routes
 app.use('/api/agents', agentRoutes);
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not found',
-    path: req.path
-  });
+// Serve static frontend files from /public directory
+const publicPath = path.join(__dirname, '..', 'public');
+app.use(express.static(publicPath));
+
+// Catch-all route to serve index.html for client-side routing
+// This MUST come after API routes but before 404 handler
+app.get('*', (req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/') || req.path === '/health') {
+    return next();
+  }
+
+  // Serve index.html for all other routes (SPA routing)
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // Error handling
