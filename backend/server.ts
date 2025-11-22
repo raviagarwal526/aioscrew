@@ -11,7 +11,7 @@ import agentRoutes from './api/routes/agents.js';
 config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Middleware
 app.use(cors({
@@ -27,6 +27,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint (for Railway)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
 // Routes
 app.use('/api/agents', agentRoutes);
 
@@ -37,7 +42,8 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     status: 'running',
     endpoints: {
-      health: '/api/agents/health',
+      health: '/health',
+      agentHealth: '/api/agents/health',
       validate: 'POST /api/agents/validate',
       validateClaim: 'POST /api/agents/validate-claim'
     }
@@ -53,16 +59,22 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start server - bind to 0.0.0.0 for Railway
+app.listen(PORT, '0.0.0.0', () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const baseUrl = isProduction
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.up.railway.app'}`
+    : `http://localhost:${PORT}`;
+
   console.log('\n🚀 Aioscrew AI Agent Backend');
   console.log('================================');
   console.log(`📡 Server running on port ${PORT}`);
-  console.log(`🌐 API: http://localhost:${PORT}`);
+  console.log(`🌐 API: ${baseUrl}`);
   console.log(`🔗 Frontend: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   console.log(`🤖 Agents: Flight Time, Premium Pay, Compliance`);
   console.log(`🔑 Claude API: ${process.env.ANTHROPIC_API_KEY ? 'Configured ✓' : 'Missing ✗'}`);
   console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected ✓' : 'Missing ✗'}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('================================\n');
 });
 
