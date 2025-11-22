@@ -30,8 +30,8 @@ RUN npm ci --only=production
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Expose port
-EXPOSE 3001
+# Expose port (Railway will set PORT env var, typically 8080)
+EXPOSE 8080
 
 # Health check - use PORT env var (Railway sets this to 8080)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

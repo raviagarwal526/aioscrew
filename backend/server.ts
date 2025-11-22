@@ -60,7 +60,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Start server - bind to 0.0.0.0 for Railway
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   const isProduction = process.env.NODE_ENV === 'production';
   const baseUrl = isProduction
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.up.railway.app'}`
@@ -75,7 +75,17 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔑 Claude API: ${process.env.ANTHROPIC_API_KEY ? 'Configured ✓' : 'Missing ✗'}`);
   console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected ✓' : 'Missing ✗'}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('================================\n');
+  console.log('================================');
+  console.log(`✅ Server is listening and ready to accept connections\n`);
+});
+
+// Handle server errors
+server.on('error', (error: NodeJS.ErrnoException) => {
+  console.error('❌ Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  }
+  process.exit(1);
 });
 
 export default app;
