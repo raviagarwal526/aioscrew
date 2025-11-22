@@ -7,7 +7,7 @@ import DatabaseInit from './components/DatabaseInit';
 import CrewMemberViewComplete from './views/CrewMemberViewComplete';
 import SchedulerView from './views/SchedulerView';
 import ControllerView from './views/ControllerView';
-import PayrollViewEnhanced from './views/PayrollViewEnhanced';
+import PayrollViewWithAgents from './views/PayrollViewWithAgents';
 import ManagementView from './views/ManagementView';
 import UnionView from './views/UnionView';
 
@@ -39,8 +39,8 @@ function App() {
       title: 'Operations Control Center'
     },
     'payroll': {
-      component: <PayrollViewEnhanced />,
-      title: 'Payroll Administration'
+      component: <PayrollViewWithAgents />,
+      title: 'Payroll Administration - AI Agent System'
     },
     'management': {
       component: <ManagementView />,
