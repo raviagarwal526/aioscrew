@@ -20,10 +20,24 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Request logging
+// Request timeout (30 seconds)
+app.use((req, res, next) => {
+  req.setTimeout(30000);
+  res.setTimeout(30000);
+  next();
+});
+
+// Request logging with timing
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
+  const start = Date.now();
   console.log(`[${timestamp}] ${req.method} ${req.path}`);
+
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${timestamp}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+  });
+
   next();
 });
 
@@ -50,12 +64,26 @@ app.get('/', (req, res) => {
   });
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    path: req.path
+  });
+});
+
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled error:', err);
+
+  // Prevent sending response if headers already sent
+  if (res.headersSent) {
+    return next(err);
+  }
+
   res.status(500).json({
     error: 'Internal server error',
-    message: err.message
+    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
   });
 });
 
