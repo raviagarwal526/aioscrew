@@ -161,7 +161,7 @@ httpServer.on('error', (error: NodeJS.ErrnoException) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
-  server.close(async () => {
+  httpServer.close(async () => {
     try {
       const { closeNeo4jDriver } = await import('./services/neo4j-service.js');
       await closeNeo4jDriver();
@@ -176,7 +176,7 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('\nSIGINT received, shutting down gracefully...');
-  server.close(async () => {
+  httpServer.close(async () => {
     try {
       const { closeNeo4jDriver } = await import('./services/neo4j-service.js');
       await closeNeo4jDriver();

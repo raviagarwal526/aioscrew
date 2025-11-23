@@ -36,7 +36,7 @@ export async function isOllamaAvailable(): Promise<boolean> {
       return false;
     }
 
-    const data = await response.json();
+    const data = await response.json() as { models?: Array<{ name: string }> };
     return data.models && Array.isArray(data.models) && data.models.length > 0;
   } catch (error) {
     // Ollama not running or not accessible
@@ -52,8 +52,8 @@ export async function getOllamaModels(): Promise<string[]> {
 
   try {
     const response = await fetch(`${ollamaUrl}/api/tags`);
-    const data = await response.json();
-    return data.models?.map((m: any) => m.name) || [];
+    const data = await response.json() as { models?: Array<{ name: string }> };
+    return data.models?.map((m) => m.name) || [];
   } catch (error) {
     console.error('Failed to fetch Ollama models:', error);
     return [];
@@ -104,7 +104,12 @@ export async function callOllama(options: OllamaCallOptions): Promise<OllamaResp
       throw new Error(`Ollama API returned status ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as {
+      message?: { content?: string };
+      prompt_eval_count?: number;
+      eval_count?: number;
+      done?: boolean;
+    };
 
     // Extract the assistant's message
     const content = data.message?.content || '';

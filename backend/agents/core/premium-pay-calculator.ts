@@ -4,7 +4,8 @@
  * Uses Neo4j Knowledge Graph for CBA premium pay rates
  */
 
-import { callClaudeWithJSON, buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { callUnifiedLLMWithJSON } from '../shared/unified-llm-client.js';
 import { getPremiumPayRate, getContractSectionsForClaimType, getAllPremiumPayRates } from '../../services/neo4j-service.js';
 import type { AgentInput, AgentResult, ContractReference } from '../shared/types.js';
 
@@ -215,7 +216,7 @@ export async function runPremiumPayCalculator(input: AgentInput): Promise<AgentR
       `Focus on:\n- What type of premium pay is being claimed: "${input.claim.type}"?\n- Does this claim qualify under CBA rules?\n- Is the amount $${input.claim.amount.toFixed(2)} correct per the CBA rate?\n- Which CBA sections apply?${rateContext}${contractContext}`
     );
 
-    const { data, raw } = await callClaudeWithJSON<PremiumPayResponse>({
+    const { data, raw } = await callUnifiedLLMWithJSON<PremiumPayResponse>({
       systemPrompt,
       userPrompt,
       temperature: 0.1,
@@ -248,7 +249,7 @@ export async function runPremiumPayCalculator(input: AgentInput): Promise<AgentR
         amountCorrect: data.amountCorrect,
         applicableSections: data.applicableSections,
         contractReferences: allContractReferences, // Include contract references from Neo4j
-        tokensUsed: raw.usage.inputTokens + raw.usage.outputTokens
+        tokensUsed: raw.usage?.inputTokens + raw.usage?.outputTokens || 0
       }
     };
   } catch (error) {

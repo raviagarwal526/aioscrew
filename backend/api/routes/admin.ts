@@ -448,34 +448,64 @@ router.get('/payments/batches', async (req: Request, res: Response) => {
   try {
     const { status, start_date, end_date } = req.query;
 
-    let whereConditions: string[] = [];
-    const params: any[] = [];
-
-    if (status) {
-      whereConditions.push(`status = $${params.length + 1}`);
-      params.push(status);
+    // Build query conditionally using Neon's template literal syntax
+    let batches;
+    if (status && start_date && end_date) {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        WHERE status = ${status} AND batch_date >= ${start_date} AND batch_date <= ${end_date}
+        ORDER BY batch_date DESC, created_at DESC
+      `;
+    } else if (status && start_date) {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        WHERE status = ${status} AND batch_date >= ${start_date}
+        ORDER BY batch_date DESC, created_at DESC
+      `;
+    } else if (status && end_date) {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        WHERE status = ${status} AND batch_date <= ${end_date}
+        ORDER BY batch_date DESC, created_at DESC
+      `;
+    } else if (start_date && end_date) {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        WHERE batch_date >= ${start_date} AND batch_date <= ${end_date}
+        ORDER BY batch_date DESC, created_at DESC
+      `;
+    } else if (status) {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        WHERE status = ${status}
+        ORDER BY batch_date DESC, created_at DESC
+      `;
+    } else if (start_date) {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        WHERE batch_date >= ${start_date}
+        ORDER BY batch_date DESC, created_at DESC
+      `;
+    } else if (end_date) {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        WHERE batch_date <= ${end_date}
+        ORDER BY batch_date DESC, created_at DESC
+      `;
+    } else {
+      batches = await sql`
+        SELECT *
+        FROM payment_batches
+        ORDER BY batch_date DESC, created_at DESC
+      `;
     }
-
-    if (start_date) {
-      whereConditions.push(`batch_date >= $${params.length + 1}`);
-      params.push(start_date);
-    }
-
-    if (end_date) {
-      whereConditions.push(`batch_date <= $${params.length + 1}`);
-      params.push(end_date);
-    }
-
-    const whereClause = whereConditions.length > 0 
-      ? `WHERE ${whereConditions.join(' AND ')}`
-      : '';
-
-    const batches = await sql`
-      SELECT *
-      FROM payment_batches
-      ${whereConditions.length > 0 ? sql`WHERE ${sql.raw(whereConditions.map((_, i) => `$${i + 1}`).join(' AND '))}` : sql``}
-      ORDER BY batch_date DESC, created_at DESC
-    `;
 
     res.json(batches.map((b: any) => ({
       batch_id: b.batch_id,
@@ -644,38 +674,74 @@ router.get('/settings/audit-log', async (req: Request, res: Response) => {
   try {
     const { entity_type, start_date, end_date, limit = '100' } = req.query;
 
-    let whereConditions: string[] = [];
-    const params: any[] = [];
-
-    if (entity_type) {
-      whereConditions.push(`entity_type = $${params.length + 1}`);
-      params.push(entity_type);
-    }
-
-    if (start_date) {
-      whereConditions.push(`created_at >= $${params.length + 1}`);
-      params.push(start_date);
-    }
-
-    if (end_date) {
-      whereConditions.push(`created_at <= $${params.length + 1}`);
-      params.push(end_date);
-    }
-
     const limitNum = parseInt(limit as string, 10);
-    params.push(limitNum);
 
-    const whereClause = whereConditions.length > 0 
-      ? `WHERE ${whereConditions.join(' AND ')}`
-      : '';
-
-    const logs = await sql`
-      SELECT *
-      FROM audit_log
-      ${whereConditions.length > 0 ? sql`WHERE ${sql.raw(whereConditions.map((_, i) => `$${i + 1}`).join(' AND '))}` : sql``}
-      ORDER BY created_at DESC
-      LIMIT $${params.length}
-    `;
+    // Build query conditionally using Neon's template literal syntax
+    let logs;
+    if (entity_type && start_date && end_date) {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        WHERE entity_type = ${entity_type} AND created_at >= ${start_date} AND created_at <= ${end_date}
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    } else if (entity_type && start_date) {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        WHERE entity_type = ${entity_type} AND created_at >= ${start_date}
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    } else if (entity_type && end_date) {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        WHERE entity_type = ${entity_type} AND created_at <= ${end_date}
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    } else if (start_date && end_date) {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        WHERE created_at >= ${start_date} AND created_at <= ${end_date}
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    } else if (entity_type) {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        WHERE entity_type = ${entity_type}
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    } else if (start_date) {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        WHERE created_at >= ${start_date}
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    } else if (end_date) {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        WHERE created_at <= ${end_date}
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    } else {
+      logs = await sql`
+        SELECT *
+        FROM audit_log
+        ORDER BY created_at DESC
+        LIMIT ${limitNum}
+      `;
+    }
 
     res.json(logs.map((l: any) => ({
       log_id: l.log_id,

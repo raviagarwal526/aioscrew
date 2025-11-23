@@ -4,7 +4,8 @@
  * Uses Neo4j Knowledge Graph for CBA contract rules
  */
 
-import { callClaudeWithJSON, buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { callUnifiedLLMWithJSON } from '../shared/unified-llm-client.js';
 import { getAllComplianceRules, getContractSectionsForClaimType } from '../../services/neo4j-service.js';
 import type { AgentInput, AgentResult, Issue, ContractReference } from '../shared/types.js';
 
@@ -191,7 +192,7 @@ export async function runComplianceValidator(input: AgentInput): Promise<AgentRe
       `Focus on compliance and fraud detection:\n- Any red flags or policy violations?\n- Is this claim within the filing deadline window?\n- Any unusual patterns in amount or frequency?\n- Is crew qualified for this work?${historicalContext}${contractContext}`
     );
 
-    const { data, raw } = await callClaudeWithJSON<ComplianceResponse>({
+    const { data, raw } = await callUnifiedLLMWithJSON<ComplianceResponse>({
       systemPrompt,
       userPrompt,
       temperature: 0.2,
@@ -222,7 +223,7 @@ export async function runComplianceValidator(input: AgentInput): Promise<AgentRe
         fraudRisk: data.fraudRisk,
         fraudIndicators: data.fraudIndicators,
         contractReferences, // Include contract references from Neo4j
-        tokensUsed: raw.usage.inputTokens + raw.usage.outputTokens
+        tokensUsed: raw.usage?.inputTokens + raw.usage?.outputTokens || 0
       }
     };
   } catch (error) {

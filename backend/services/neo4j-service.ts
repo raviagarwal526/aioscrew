@@ -26,7 +26,6 @@ export function initNeo4jDriver(): Driver {
   }
 
   driver = neo4j.driver(uri, neo4j.auth.basic(username, password), {
-    database,
     maxConnectionLifetime: 3 * 60 * 60 * 1000, // 3 hours
     maxConnectionPoolSize: 50,
     connectionAcquisitionTimeout: 2 * 60 * 1000, // 2 minutes
