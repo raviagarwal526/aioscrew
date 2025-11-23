@@ -4,7 +4,9 @@
 
 import type { ClaimData, AgentValidationResult } from '../types/agents';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use current origin in production, localhost in development
+const API_URL = import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
 
 export interface ApiError {
   error: string;
