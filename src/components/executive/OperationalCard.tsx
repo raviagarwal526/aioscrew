@@ -10,23 +10,42 @@ interface OperationalCardProps {
 export default function OperationalCard({ card, onClick }: OperationalCardProps) {
   // Dynamically get the icon component from lucide-react
   const IconComponent = (LucideIcons as any)[card.icon] || LucideIcons.BarChart3;
+  const accentStyles = {
+    executive: {
+      border: 'border-blue-500',
+      hoverShadow: 'hover:shadow-blue-500/20',
+      iconBg: 'bg-blue-100',
+      icon: 'text-blue-600',
+      chevron: 'text-blue-600',
+      badge: 'bg-green-100 text-green-800'
+    },
+    crew: {
+      border: 'border-indigo-500',
+      hoverShadow: 'hover:shadow-indigo-500/25',
+      iconBg: 'bg-indigo-100',
+      icon: 'text-indigo-600',
+      chevron: 'text-indigo-600',
+      badge: 'bg-emerald-100 text-emerald-800'
+    }
+  } as const;
+  const accent = accentStyles[card.category] ?? accentStyles.executive;
 
   const isClickable = card.isActive && onClick;
 
   const cardClasses = `
-    relative bg-white rounded-lg shadow-md border-2 transition-all duration-200
-    ${card.isActive 
-      ? 'border-blue-500 cursor-pointer hover:scale-105 hover:shadow-lg' 
-      : 'border-gray-300 bg-gray-50 opacity-60 cursor-not-allowed'
+    relative bg-white rounded-2xl shadow-md border-2 transition-all duration-300
+    ${card.isActive
+      ? `${accent.border} cursor-pointer hover:-translate-y-1 ${accent.hoverShadow}`
+      : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
     }
   `;
 
-  const iconBgClasses = card.isActive 
-    ? 'bg-blue-100' 
+  const iconBgClasses = card.isActive
+    ? accent.iconBg
     : 'bg-gray-200';
 
-  const iconColorClasses = card.isActive 
-    ? 'text-blue-600' 
+  const iconColorClasses = card.isActive
+    ? accent.icon
     : 'text-gray-400';
 
   const textPrimaryClasses = card.isActive 
@@ -87,11 +106,11 @@ export default function OperationalCard({ card, onClick }: OperationalCardProps)
       )}
 
       {/* Chevron for active cards */}
-      {card.isActive && (
-        <div className="absolute top-4 right-4">
-          <ChevronRight className="w-5 h-5 text-blue-600" />
-        </div>
-      )}
+        {card.isActive && (
+          <div className="absolute top-4 right-4">
+            <ChevronRight className={`w-5 h-5 ${accent.chevron}`} />
+          </div>
+        )}
 
       <div className="p-6">
         {/* Icon and Title Section */}
@@ -112,7 +131,7 @@ export default function OperationalCard({ card, onClick }: OperationalCardProps)
         {/* Status Badge */}
         <div className="mb-4">
           {card.isActive ? (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${accent.badge}`}>
               ✓ Active & Wired
             </span>
           ) : (

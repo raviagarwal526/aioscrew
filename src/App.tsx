@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UserRole } from './types';
 import LandingPage from './components/LandingPage';
 import DashboardLayout from './components/DashboardLayout';
@@ -14,9 +14,14 @@ import ExecutiveDashboard from './components/executive/ExecutiveDashboard';
 import { LogOut } from 'lucide-react';
 
 function App() {
-  const [dbInitialized, setDbInitialized] = useState(false);
-  const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
-  const [activeView, setActiveView] = useState('dashboard');
+    const [dbInitialized, setDbInitialized] = useState(false);
+    const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
+    const [activeView, setActiveView] = useState('dashboard');
+
+    useEffect(() => {
+      if (!dbInitialized || typeof window === 'undefined') return;
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }, [dbInitialized, currentRole, activeView]);
 
   const handleSelectRole = (role: UserRole) => {
     setCurrentRole(role);
