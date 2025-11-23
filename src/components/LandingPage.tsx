@@ -1,5 +1,6 @@
 import { Plane, Calendar, Target, DollarSign, BarChart3, Scale, Building2 } from 'lucide-react';
 import { UserRole } from '../types';
+import DataGenerationCard from './DataGenerationCard';
 
 interface LandingPageProps {
   onSelectRole: (role: UserRole) => void;
@@ -143,6 +144,16 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-16 max-w-5xl mx-auto space-y-4">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-white mb-2">Generate Rich Demo Data</h2>
+            <p className="text-blue-200">
+              Use the AI generator card (prefers local Ollama) to seed crew, trip, and claim records instantly.
+            </p>
+          </div>
+          <DataGenerationCard />
         </div>
 
         <div className="mt-12 text-center">

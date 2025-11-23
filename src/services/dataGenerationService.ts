@@ -1,6 +1,9 @@
 import { crewService } from './crewService';
 import type { CrewMember, Trip, Claim } from '../types';
 
+const API_URL = import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
+
 // Realistic name pools for diverse crew
 const FIRST_NAMES = [
   // Male names
@@ -457,6 +460,33 @@ class DataGenerationService {
 
     // In a real implementation, you would batch insert these into the database
     // using the crewService or a direct database connection
+  }
+
+  async requestLLMBlueprint(
+    config: GenerationConfig,
+    scenarioId?: string | null
+  ): Promise<any> {
+    const response = await fetch(`${API_URL}/api/agents/test-data/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        config,
+        scenarioId
+      })
+    });
+
+    if (!response.ok) {
+      let message = 'Test data agent unavailable';
+      try {
+        const error = await response.json();
+        message = error?.message || error?.error || message;
+      } catch (err) {
+        console.warn('Failed to parse test data agent error response:', err);
+      }
+      throw new Error(message);
+    }
+
+    return response.json();
   }
 }
 

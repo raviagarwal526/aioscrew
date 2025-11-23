@@ -12,6 +12,7 @@ import {
   updateClaimWithValidation
 } from '../../services/database-service.js';
 import type { AgentInput } from '../../agents/shared/types.js';
+import { runTestDataGenerator } from '../../agents/core/test-data-generator.js';
 
 const router = Router();
 
@@ -140,6 +141,31 @@ router.get('/health', (req: Request, res: Response) => {
       'compliance-validator'
     ]
   });
+});
+
+/**
+ * POST /api/agents/test-data/generate
+ * Returns AI-assisted blueprint for generating synthetic datasets.
+ */
+router.post('/test-data/generate', async (req: Request, res: Response) => {
+  try {
+    const { config, scenarioId } = req.body || {};
+
+    if (!config || typeof config !== 'object') {
+      return res.status(400).json({
+        error: 'Missing config in request body'
+      });
+    }
+
+    const result = await runTestDataGenerator(config, scenarioId);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Test data generation error:', error);
+    res.status(500).json({
+      error: 'Failed to generate test data blueprint',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 export default router;

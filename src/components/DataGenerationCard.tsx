@@ -266,8 +266,9 @@ export default function DataGenerationCard() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [generationResult, setGenerationResult] = useState<any>(null);
-  const [showPreview, setShowPreview] = useState(false);
+    const [generationResult, setGenerationResult] = useState<any>(null);
+    const [showPreview, setShowPreview] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
 
   const handleScenarioSelect = (scenario: ScenarioPreset) => {
     setSelectedScenario(scenario.id);
@@ -291,10 +292,11 @@ export default function DataGenerationCard() {
     };
   };
 
-  const handleGenerate = async () => {
-    setIsGenerating(true);
-    setProgress(0);
-    setGenerationResult(null);
+    const handleGenerate = async () => {
+      setIsGenerating(true);
+      setProgress(0);
+      setGenerationResult(null);
+      setAiError(null);
 
     try {
       // Step 1: Import generation service
@@ -317,13 +319,23 @@ export default function DataGenerationCard() {
       setProgress(75);
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Step 6: Persist to database
-      setProgress(90);
-      const data = await dataGenerationService.generate(config);
-      await dataGenerationService.persistToDatabase(data);
+        // Step 6: Persist to database (simulated)
+        setProgress(85);
+        const data = await dataGenerationService.generate(config);
+        await dataGenerationService.persistToDatabase(data);
 
-      // Step 7: Complete
-      setProgress(100);
+        // Step 7: Request AI blueprint (Ollama-first)
+        setProgress(92);
+        let aiInsights: any = null;
+        try {
+          aiInsights = await dataGenerationService.requestLLMBlueprint(config, selectedScenario);
+        } catch (aiErr) {
+          console.warn('AI blueprint unavailable:', aiErr);
+          setAiError(aiErr instanceof Error ? aiErr.message : 'Unable to reach AI blueprint service');
+        }
+
+        // Step 8: Complete
+        setProgress(100);
       const stats = {
         crewMembers: data.crewMembers.length,
         trips: data.trips.length,
@@ -337,7 +349,8 @@ export default function DataGenerationCard() {
       setGenerationResult({
         success: true,
         ...stats,
-        timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          aiInsights
       });
     } catch (error) {
       console.error('Generation error:', error);
@@ -350,7 +363,12 @@ export default function DataGenerationCard() {
     }
   };
 
-  const stats = calculateGenerationStats();
+    const stats = calculateGenerationStats();
+    const aiPlan = generationResult?.aiInsights?.aiPlan;
+    const aiMeta = generationResult?.aiInsights;
+    const crewSamples = aiPlan?.datasetSamples?.crewMembers ?? [];
+    const tripSamples = aiPlan?.datasetSamples?.trips ?? [];
+    const claimSamples = aiPlan?.datasetSamples?.claims ?? [];
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
@@ -633,57 +651,165 @@ export default function DataGenerationCard() {
       )}
 
       {/* Generation Result */}
-      {generationResult && (
-        <div className={`p-4 rounded-lg border-2 ${
-          generationResult.success
-            ? 'bg-green-50 border-green-200'
-            : 'bg-red-50 border-red-200'
-        }`}>
-          <div className="flex items-start gap-3">
-            {generationResult.success ? (
-              <>
-                <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-green-900 mb-2">Data Generated Successfully!</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-                    <div>
-                      <span className="text-green-700">Crew:</span>
-                      <span className="font-semibold text-green-900 ml-1">{generationResult.crewMembers.toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <span className="text-green-700">Trips:</span>
-                      <span className="font-semibold text-green-900 ml-1">{generationResult.trips.toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <span className="text-green-700">Claims:</span>
-                      <span className="font-semibold text-green-900 ml-1">{generationResult.claims.toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <span className="text-green-700">Violations:</span>
-                      <span className="font-semibold text-green-900 ml-1">{generationResult.violations.toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <span className="text-green-700">Total:</span>
-                      <span className="font-semibold text-green-900 ml-1">{generationResult.dataPoints.toLocaleString()}</span>
+        {generationResult && (
+          <div
+            className={`p-4 rounded-lg border-2 ${
+              generationResult.success
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              {generationResult.success ? (
+                <div className="w-full">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-green-900 mb-2">Data Generated Successfully!</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                        <div>
+                          <span className="text-green-700">Crew:</span>
+                          <span className="font-semibold text-green-900 ml-1">{generationResult.crewMembers.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-green-700">Trips:</span>
+                          <span className="font-semibold text-green-900 ml-1">{generationResult.trips.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-green-700">Claims:</span>
+                          <span className="font-semibold text-green-900 ml-1">{generationResult.claims.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-green-700">Violations:</span>
+                          <span className="font-semibold text-green-900 ml-1">{generationResult.violations.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-green-700">Total:</span>
+                          <span className="font-semibold text-green-900 ml-1">{generationResult.dataPoints.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-green-700 mt-2">
+                        Generated at {new Date(generationResult.timestamp).toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                  <p className="text-xs text-green-700 mt-2">
-                    Generated at {new Date(generationResult.timestamp).toLocaleString()}
-                  </p>
+
+                  {aiMeta && aiPlan && (
+                    <div className="mt-4 p-4 bg-white border border-green-100 rounded-lg space-y-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">
+                            AI Blueprint (Ollama-first)
+                          </p>
+                          <p className="text-sm text-gray-700 mt-1">{aiPlan.summary}</p>
+                        </div>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div><span className="font-semibold text-gray-700">Provider:</span> {aiMeta.provider}</div>
+                          <div><span className="font-semibold text-gray-700">Model:</span> {aiMeta.model}</div>
+                          <div><span className="font-semibold text-gray-700">Tokens:</span> {aiMeta.tokensUsed?.toLocaleString?.() || '—'}</div>
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <h5 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Recommended Steps</h5>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            {aiPlan.recommendedSteps?.map((step: string, idx: number) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-green-500 mt-0.5">•</span>
+                                <span>{step}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">QA Checklist</h5>
+                          <ul className="space-y-1 text-sm text-gray-700">
+                            {aiPlan.qaChecklist?.map((item: string, idx: number) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-blue-500 mt-0.5">•</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-3">
+                        <div className="bg-green-50 rounded-lg p-3">
+                          <h6 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                            Crew Samples
+                          </h6>
+                          <ul className="space-y-1 text-xs text-gray-700">
+                            {crewSamples.slice(0, 3).map((crew, idx) => (
+                              <li key={`${crew.name}-${idx}`}>
+                                <span className="font-semibold text-gray-900">{crew.name}</span> — {crew.role} ({crew.base})
+                              </li>
+                            ))}
+                            {crewSamples.length === 0 && <li>No samples provided</li>}
+                          </ul>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <h6 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                            Trip Samples
+                          </h6>
+                          <ul className="space-y-1 text-xs text-gray-700">
+                            {tripSamples.slice(0, 3).map((trip, idx) => (
+                              <li key={`${trip.route}-${idx}`}>
+                                <span className="font-semibold text-gray-900">{trip.route}</span> ({trip.flightNumber}) — {trip.seasonality}
+                              </li>
+                            ))}
+                            {tripSamples.length === 0 && <li>No samples provided</li>}
+                          </ul>
+                        </div>
+                        <div className="bg-purple-50 rounded-lg p-3">
+                          <h6 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                            Claim Samples
+                          </h6>
+                          <ul className="space-y-1 text-xs text-gray-700">
+                            {claimSamples.slice(0, 3).map((claim, idx) => (
+                              <li key={`${claim.claimType}-${idx}`}>
+                                <span className="font-semibold text-gray-900">{claim.claimType}</span> — {claim.amountHint}
+                              </li>
+                            ))}
+                            {claimSamples.length === 0 && <li>No samples provided</li>}
+                          </ul>
+                        </div>
+                      </div>
+                      {(aiPlan.riskAlerts?.length || aiMeta.warning) && (
+                        <div className="space-y-2">
+                          {aiPlan.riskAlerts?.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
+                              <span className="font-semibold">Risk Alerts:</span>{' '}
+                              {aiPlan.riskAlerts.join(' • ')}
+                            </div>
+                          )}
+                          {aiMeta.warning && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-900">
+                              {aiMeta.warning}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {aiError && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+                      AI blueprint unavailable: {aiError}
+                    </div>
+                  )}
                 </div>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-red-900 mb-1">Generation Failed</h4>
-                  <p className="text-sm text-red-700">{generationResult.error}</p>
-                </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-red-900 mb-1">Generation Failed</h4>
+                    <p className="text-sm text-red-700">{generationResult.error}</p>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Preview Panel */}
       {showPreview && (
