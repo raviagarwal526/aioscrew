@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, Calendar, DollarSign, Clock, Plane, Plus, X } from 'lucide-react';
+import { CheckCircle, AlertCircle, Calendar, DollarSign, Clock, Plane, Plus, X, MessageCircle, FileText } from 'lucide-react';
 import ConversationalAI from '../components/ConversationalAI';
+import ClaimCreationForm from '../components/ClaimCreationForm';
+import ConversationalClaimBuilder from '../components/ConversationalClaimBuilder';
 import { crewService } from '../services/crewService';
 import type { CrewMember, Trip, Claim } from '../types';
 
@@ -9,13 +11,10 @@ export default function CrewMemberViewEnhanced() {
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
   const [userClaims, setUserClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showClaimOptions, setShowClaimOptions] = useState(false);
   const [showClaimForm, setShowClaimForm] = useState(false);
-  const [newClaim, setNewClaim] = useState({
-    type: 'International Premium',
-    tripId: '',
-    amount: '',
-    description: ''
-  });
+  const [showConversationalBuilder, setShowConversationalBuilder] = useState(false);
+  const [prefilledClaimData, setPrefilledClaimData] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -39,26 +38,29 @@ export default function CrewMemberViewEnhanced() {
     }
   };
 
-  const handleSubmitClaim = async () => {
-    if (!currentUser || !newClaim.tripId || !newClaim.amount) return;
-
-    const claim: Omit<Claim, 'id'> = {
-      crew_id: currentUser.id,
-      claim_type: newClaim.type,
-      trip_id: newClaim.tripId,
-      claim_date: new Date().toISOString().split('T')[0],
-      amount: parseFloat(newClaim.amount),
-      status: 'pending',
-      ai_validated: true,
-      ai_explanation: `AI validated: ${newClaim.type} claim for trip ${newClaim.tripId}. ${newClaim.description}`,
-      contract_reference: 'CBA Section 12.4'
-    };
-
+  const handleSubmitClaim = async (claim: Omit<Claim, 'id'>) => {
     const result = await crewService.submitClaim(claim);
     if (result) {
       await loadData();
-      setShowClaimForm(false);
-      setNewClaim({ type: 'International Premium', tripId: '', amount: '', description: '' });
+    }
+  };
+
+  const handleConversationalClaimReady = (claimData: any) => {
+    setPrefilledClaimData(claimData);
+    setShowConversationalBuilder(false);
+    setShowClaimForm(true);
+  };
+
+  const handleNewClaimClick = () => {
+    setShowClaimOptions(true);
+  };
+
+  const handleClaimOptionSelected = (option: 'form' | 'conversational') => {
+    setShowClaimOptions(false);
+    if (option === 'form') {
+      setShowClaimForm(true);
+    } else {
+      setShowConversationalBuilder(true);
     }
   };
 
@@ -204,7 +206,7 @@ export default function CrewMemberViewEnhanced() {
                 My Claims
               </h3>
               <button
-                onClick={() => setShowClaimForm(true)}
+                onClick={handleNewClaimClick}
                 className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -243,91 +245,97 @@ export default function CrewMemberViewEnhanced() {
         </div>
       </div>
 
-      {showClaimForm && (
+      {/* Claim Creation Options Modal */}
+      {showClaimOptions && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Submit New Claim</h3>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">Create a New Claim</h3>
+                <p className="text-sm text-gray-600 mt-1">Choose how you'd like to submit your claim</p>
+              </div>
               <button
-                onClick={() => setShowClaimForm(false)}
+                onClick={() => setShowClaimOptions(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Claim Type</label>
-                <select
-                  value={newClaim.type}
-                  onChange={(e) => setNewClaim({ ...newClaim, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option>International Premium</option>
-                  <option>Per Diem</option>
-                  <option>Holiday Pay</option>
-                  <option>Overtime</option>
-                  <option>Other</option>
-                </select>
-              </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <button
+                onClick={() => handleClaimOptionSelected('conversational')}
+                className="p-6 border-2 border-blue-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-600 transition-colors">
+                    <MessageCircle className="w-6 h-6 text-blue-600 group-hover:text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 text-lg mb-2">Describe Your Claim</h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Tell us about your claim in natural language and our AI will ask clarifying questions.
+                    </p>
+                    <div className="text-xs text-blue-600 font-medium">
+                      ✨ Recommended for quick submissions
+                    </div>
+                  </div>
+                </div>
+              </button>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Trip ID</label>
-                <select
-                  value={newClaim.tripId}
-                  onChange={(e) => setNewClaim({ ...newClaim, tripId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select a trip</option>
-                  {userTrips.map(trip => (
-                    <option key={trip.id} value={trip.id}>
-                      {trip.id} - {trip.route} ({new Date(trip.trip_date).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <button
+                onClick={() => handleClaimOptionSelected('form')}
+                className="p-6 border-2 border-gray-200 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all text-left group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-gray-100 rounded-lg group-hover:bg-gray-600 transition-colors">
+                    <FileText className="w-6 h-6 text-gray-600 group-hover:text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 text-lg mb-2">Use Traditional Form</h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Fill out a structured form with all the claim details step by step.
+                    </p>
+                    <div className="text-xs text-gray-600 font-medium">
+                      📋 Detailed and structured
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
-                <input
-                  type="number"
-                  value={newClaim.amount}
-                  onChange={(e) => setNewClaim({ ...newClaim, amount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="125.00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
-                <textarea
-                  value={newClaim.description}
-                  onChange={(e) => setNewClaim({ ...newClaim, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Additional details about this claim..."
-                />
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={handleSubmitClaim}
-                  disabled={!newClaim.tripId || !newClaim.amount}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Submit Claim
-                </button>
-                <button
-                  onClick={() => setShowClaimForm(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Tip:</strong> Try the conversational method! Just say something like "I need to claim
+                international premium for my Panama trip last Tuesday" and the AI will handle the rest.
+              </p>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Conversational Claim Builder */}
+      {showConversationalBuilder && currentUser && (
+        <ConversationalClaimBuilder
+          currentUser={currentUser}
+          userTrips={userTrips}
+          onClaimDataReady={handleConversationalClaimReady}
+          onCancel={() => setShowConversationalBuilder(false)}
+        />
+      )}
+
+      {/* Enhanced Claim Creation Form */}
+      {showClaimForm && currentUser && (
+        <ClaimCreationForm
+          currentUser={currentUser}
+          userTrips={userTrips}
+          onClose={() => {
+            setShowClaimForm(false);
+            setPrefilledClaimData(null);
+          }}
+          onSubmit={handleSubmitClaim}
+          prefilledData={prefilledClaimData}
+        />
       )}
     </div>
   );
