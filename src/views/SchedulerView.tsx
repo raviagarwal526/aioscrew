@@ -1,30 +1,52 @@
-import { useState } from 'react';
-import { Calendar, Users, DollarSign, AlertTriangle, TrendingDown, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Users, DollarSign, AlertTriangle, TrendingDown, Sparkles, Settings } from 'lucide-react';
 import ConversationalAI from '../components/ConversationalAI';
 import { crewMembers, trips } from '../data/mockData';
 import RosterBuilderView from './scheduler/RosterBuilderView';
 import CrewManagementView from './scheduler/CrewManagementView';
 import AnalyticsView from './scheduler/AnalyticsView';
+import SettingsView from './scheduler/SettingsView';
 
-export default function SchedulerView() {
-  const [activeSubView, setActiveSubView] = useState<string>('dashboard');
-  const uncoveredTrips = trips.filter(t => t.crewAssigned.length === 0);
+interface SchedulerViewProps {
+  activeView?: string;
+  onViewChange?: (view: string) => void;
+}
+
+export default function SchedulerView({ activeView = 'dashboard', onViewChange }: SchedulerViewProps) {
+  const [activeSubView, setActiveSubView] = useState<string>(activeView);
+  const uncoveredTrips = trips.filter(t => !(t as any).crewAssigned || (t as any).crewAssigned.length === 0);
   const totalCrew = crewMembers.length;
   const totalPairings = trips.length;
 
-  // If roster builder is active, show that view
+  // Sync with parent activeView
+  useEffect(() => {
+    if (activeView && activeView !== activeSubView) {
+      setActiveSubView(activeView);
+    }
+  }, [activeView]);
+
+  const handleViewChange = (view: string) => {
+    setActiveSubView(view);
+    if (onViewChange) {
+      onViewChange(view);
+    }
+  };
+
+  // Route to submenus
   if (activeSubView === 'roster-builder') {
-    return <RosterBuilderView onBack={() => setActiveSubView('dashboard')} />;
+    return <RosterBuilderView onBack={() => handleViewChange('dashboard')} />;
   }
 
-  // If crew management is active, show that view
   if (activeSubView === 'crew-management') {
-    return <CrewManagementView onBack={() => setActiveSubView('dashboard')} />;
+    return <CrewManagementView onBack={() => handleViewChange('dashboard')} />;
   }
 
-  // If analytics is active, show that view
   if (activeSubView === 'analytics') {
     return <AnalyticsView />;
+  }
+
+  if (activeSubView === 'settings') {
+    return <SettingsView onBack={() => handleViewChange('dashboard')} />;
   }
 
   return (
@@ -197,6 +219,15 @@ export default function SchedulerView() {
           <DollarSign className="w-6 h-6 text-amber-600 mb-2" />
           <div className="font-semibold">Analytics & Reports</div>
           <div className="text-xs text-gray-600">Metrics & forecasting</div>
+        </button>
+
+        <button
+          onClick={() => setActiveSubView('settings')}
+          className="px-6 py-4 bg-white hover:bg-gray-50 text-gray-900 rounded-lg shadow-md transition-colors text-left"
+        >
+          <Settings className="w-6 h-6 text-gray-600 mb-2" />
+          <div className="font-semibold">Settings</div>
+          <div className="text-xs text-gray-600">Configuration & preferences</div>
         </button>
       </div>
     </div>

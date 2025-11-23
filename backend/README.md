@@ -18,8 +18,19 @@ cp .env.example .env
 Edit `.env` and add:
 - `ANTHROPIC_API_KEY` - Your Anthropic API key from https://console.anthropic.com
 - `DATABASE_URL` - Your Neon PostgreSQL connection string (copy from frontend `.env`)
+- `NEO4J_URI` - Your Neo4j Aura connection URI (e.g., `neo4j+s://xxx.databases.neo4j.io`)
+- `NEO4J_USERNAME` - Neo4j username (usually `neo4j`)
+- `NEO4J_PASSWORD` - Neo4j password
+- `NEO4J_DATABASE` - Neo4j database name (default: `neo4j`)
 
-### 3. Run Development Server
+### 3. Seed Neo4j Knowledge Graph (First Time Setup)
+```bash
+npm run seed:neo4j
+```
+
+This populates Neo4j with CBA contract sections, compliance rules, and premium pay rates.
+
+### 4. Run Development Server
 ```bash
 npm run dev
 ```
@@ -38,15 +49,35 @@ Server starts on `http://localhost:3001`
 
 2. **Premium Pay Calculator** (`agents/core/premium-pay-calculator.ts`)
    - Determines premium pay eligibility
-   - Calculates correct amount per CBA rules
-   - Cites specific contract sections
+   - Calculates correct amount per CBA rules (from Neo4j Knowledge Graph)
+   - Cites specific contract sections with references
    - **Accuracy:** 100% on known pay types
 
 3. **Compliance Validator** (`agents/core/compliance-validator.ts`)
    - Fraud detection (duplicates, patterns)
-   - Policy compliance (deadlines, qualifications)
+   - Policy compliance (deadlines, qualifications from Neo4j Knowledge Graph)
    - Historical analysis
    - **Detection Rate:** 87%+ for anomalies
+
+### Neo4j Knowledge Graph
+
+The system uses Neo4j to store and query CBA contract rules, sections, and relationships:
+
+**Data Model:**
+- `ContractSection` - CBA contract sections (e.g., Section 12.4, Section 15.2)
+- `ClaimType` - Types of claims (International Premium, Holiday Premium, etc.)
+- `ComplianceRule` - Compliance rules (filing deadlines, duplicate prevention, etc.)
+- `PremiumPayRate` - Premium pay rates and formulas
+- Relationships: `APPLIES_TO`, `DEFINED_IN`, `RELATED_TO`
+
+**Usage:**
+- Agents query Neo4j for relevant contract sections based on claim type
+- Compliance rules are dynamically loaded from the knowledge graph
+- Premium pay rates are fetched from Neo4j instead of hardcoded values
+- Contract references are automatically included in agent responses
+
+**Seed Script:**
+Run `npm run seed:neo4j` to populate the knowledge graph with initial CBA data.
 
 ### LangGraph Orchestration
 
@@ -164,7 +195,10 @@ backend/
 │   └── routes/
 │       └── agents.ts                    # Express routes
 ├── services/
-│   └── database-service.ts              # Neon PostgreSQL queries
+│   ├── database-service.ts              # Neon PostgreSQL queries
+│   └── neo4j-service.ts                # Neo4j Knowledge Graph queries
+├── scripts/
+│   └── seed-neo4j.ts                    # Neo4j seed script
 ├── server.ts                            # Express app
 ├── package.json
 └── tsconfig.json
@@ -221,6 +255,10 @@ curl -X POST http://localhost:3001/api/agents/validate \
 |----------|-------------|----------|
 | `ANTHROPIC_API_KEY` | Claude API key | ✓ |
 | `DATABASE_URL` | Neon PostgreSQL connection | ✓ |
+| `NEO4J_URI` | Neo4j Aura connection URI | ✓ |
+| `NEO4J_USERNAME` | Neo4j username | ✓ |
+| `NEO4J_PASSWORD` | Neo4j password | ✓ |
+| `NEO4J_DATABASE` | Neo4j database name (default: `neo4j`) | ✗ |
 | `PORT` | Server port (default: 3001) | ✗ |
 | `FRONTEND_URL` | CORS origin | ✗ |
 | `NODE_ENV` | development/production | ✗ |
@@ -247,7 +285,7 @@ curl -X POST http://localhost:3001/api/agents/validate \
 ### Immediate Enhancements
 - [ ] Add WebSocket support for real-time updates
 - [ ] Implement remaining 5 core agents (PerDiem, DutyTime, Guarantee, DisputeResolution, Orchestrator improvements)
-- [ ] Add Neo4j integration for CBA contract lookup
+- [x] ~~Add Neo4j integration for CBA contract lookup~~ ✅ **COMPLETED**
 - [ ] Implement caching layer (Redis)
 
 ### Extended Features

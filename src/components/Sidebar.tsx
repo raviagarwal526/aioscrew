@@ -17,8 +17,8 @@ const sidebarMenus: Record<UserRole, Array<{ icon: any; label: string; view: str
   ],
   'scheduler': [
     { icon: Home, label: 'Planning Dashboard', view: 'dashboard' },
-    { icon: Calendar, label: 'Roster Builder', view: 'roster' },
-    { icon: Users, label: 'Crew Management', view: 'crew' },
+    { icon: Calendar, label: 'Roster Builder', view: 'roster-builder' },
+    { icon: Users, label: 'Crew Management', view: 'crew-management' },
     { icon: BarChart3, label: 'Analytics', view: 'analytics' },
     { icon: Settings, label: 'Settings', view: 'settings' }
   ],
