@@ -14,7 +14,7 @@ export interface CrewMember {
   seniority: number;
   qualification: string;
   email: string;
-  ytdEarnings: number;
+  ytdEarnings?: number;
   upcomingTraining?: {
     type: string;
     daysUntil: number;

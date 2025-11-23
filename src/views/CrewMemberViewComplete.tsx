@@ -96,14 +96,16 @@ export default function CrewMemberViewComplete({ activeView, onViewChange }: Cre
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-lg shadow border-l-4 border-green-500 p-4">
                   <div className="text-sm text-gray-600">Current Pay</div>
-                  <div className="text-2xl font-bold text-gray-900">${currentUser.currentPay?.amount.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-gray-900">${currentUser.currentPay?.amount?.toLocaleString() || '0'}</div>
                   <div className="text-xs text-green-600">✓ Verified</div>
                 </div>
-                <div className="bg-white rounded-lg shadow border-l-4 border-amber-500 p-4">
-                  <div className="text-sm text-gray-600">Training Due</div>
-                  <div className="text-2xl font-bold text-gray-900">{currentUser.upcomingTraining?.daysUntil} days</div>
-                  <div className="text-xs text-amber-600">{currentUser.upcomingTraining?.type}</div>
-                </div>
+                {currentUser.upcomingTraining && (
+                  <div className="bg-white rounded-lg shadow border-l-4 border-amber-500 p-4">
+                    <div className="text-sm text-gray-600">Training Due</div>
+                    <div className="text-2xl font-bold text-gray-900">{currentUser.upcomingTraining.daysUntil} days</div>
+                    <div className="text-xs text-amber-600">{currentUser.upcomingTraining.type}</div>
+                  </div>
+                )}
                 <div className="bg-white rounded-lg shadow border-l-4 border-blue-500 p-4">
                   <div className="text-sm text-gray-600">Next Trip</div>
                   <div className="text-2xl font-bold text-gray-900">Tomorrow</div>
@@ -111,7 +113,7 @@ export default function CrewMemberViewComplete({ activeView, onViewChange }: Cre
                 </div>
                 <div className="bg-white rounded-lg shadow border-l-4 border-teal-500 p-4">
                   <div className="text-sm text-gray-600">YTD Earnings</div>
-                  <div className="text-2xl font-bold text-gray-900">${currentUser.ytdEarnings.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-gray-900">${currentUser.ytdEarnings?.toLocaleString() || '0'}</div>
                   <div className="text-xs text-teal-600">+8% vs last year</div>
                 </div>
               </div>
