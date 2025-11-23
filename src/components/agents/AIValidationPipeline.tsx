@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Brain, CheckCircle2, Clock, Info, Sparkles, Zap } from 'lucide-react';
+import HierarchicalAgentView from './HierarchicalAgentView';
 
 interface AgentStepProps {
   name: string;
@@ -7,9 +8,10 @@ interface AgentStepProps {
   status: 'pending' | 'running' | 'completed' | 'error';
   duration?: number;
   description: string;
+  showSubAgents?: boolean;
 }
 
-const AgentStep = ({ name, icon, status, duration, description }: AgentStepProps) => {
+const AgentStep = ({ name, icon, status, duration, description, showSubAgents }: AgentStepProps) => {
   const statusColors = {
     pending: 'bg-gray-100 text-gray-400 border-gray-300',
     running: 'bg-blue-50 text-blue-600 border-blue-400 animate-pulse',
@@ -25,23 +27,32 @@ const AgentStep = ({ name, icon, status, duration, description }: AgentStepProps
   };
 
   return (
-    <div className={`relative p-4 rounded-lg border-2 ${statusColors[status]} transition-all duration-300`}>
-      <div className="flex items-start space-x-3">
-        <div className="text-3xl">{icon}</div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-sm">{name}</h4>
-            {status === 'running' && <Zap className="animate-bounce" size={16} />}
-            {status === 'completed' && <CheckCircle2 size={16} />}
-            {duration && status === 'completed' && (
-              <span className="text-xs flex items-center gap-1">
-                <Clock size={12} /> {duration.toFixed(1)}s
-              </span>
-            )}
+    <div>
+      <div className={`relative p-4 rounded-lg border-2 ${statusColors[status]} transition-all duration-300`}>
+        <div className="flex items-start space-x-3">
+          <div className="text-3xl">{icon}</div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sm">{name}</h4>
+              {status === 'running' && <Zap className="animate-bounce" size={16} />}
+              {status === 'completed' && <CheckCircle2 size={16} />}
+              {duration && status === 'completed' && (
+                <span className="text-xs flex items-center gap-1">
+                  <Clock size={12} /> {duration.toFixed(1)}s
+                </span>
+              )}
+            </div>
+            <p className="text-xs mt-1 opacity-75">{description}</p>
           </div>
-          <p className="text-xs mt-1 opacity-75">{description}</p>
         </div>
       </div>
+      {/* Show hierarchical sub-agents for Compliance Validator */}
+      {showSubAgents && (
+        <HierarchicalAgentView
+          isExpanded={status === 'running' || status === 'completed'}
+          parentStatus={status}
+        />
+      )}
     </div>
   );
 };
@@ -170,6 +181,7 @@ export default function AIValidationPipeline({
               status={getStepStatus(step.id)}
               duration={stepDurations[step.id]}
               description={step.description}
+              showSubAgents={step.id === 'compliance'}
             />
             {index < steps.length - 1 && index % 2 === 0 && (
               <div className="absolute top-1/2 -right-2 w-4 h-0.5 bg-blue-300" />

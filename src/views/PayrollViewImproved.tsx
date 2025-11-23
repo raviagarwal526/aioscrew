@@ -4,6 +4,7 @@ import AgentActivityFeed from '../components/agents/AgentActivityFeed';
 import ClaimCard from '../components/agents/ClaimCard';
 import AIValidationPipeline from '../components/agents/AIValidationPipeline';
 import TechnologySelectionMatrix from '../components/agents/TechnologySelectionMatrix';
+import AgentExecutionTimeline from '../components/agents/AgentExecutionTimeline';
 import { ClaimData, AgentActivity } from '../types/agents';
 import { mockClaims, validateClaimWithAgents, createAgentActivity } from '../services/agentService';
 
@@ -236,12 +237,76 @@ export default function PayrollViewImproved() {
 
         {/* AI Pipeline Visualization */}
         {hasStarted && (
-          <AIValidationPipeline
-            isRunning={isProcessing}
-            currentStep={currentStep}
-            completedSteps={completedSteps}
-            stepDurations={stepDurations}
-          />
+          <div className="grid grid-cols-2 gap-6">
+            <AIValidationPipeline
+              isRunning={isProcessing}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              stepDurations={stepDurations}
+            />
+            <AgentExecutionTimeline
+              steps={[
+                {
+                  id: 'flight-time',
+                  name: 'Flight Time Calculator',
+                  icon: '🔍',
+                  technology: 'GPT-4o-mini • Fast calculations',
+                  status: completedSteps.includes('flight-time') ? 'completed' : currentStep === 'flight-time' ? 'running' : 'pending',
+                  duration: stepDurations['flight-time']
+                },
+                {
+                  id: 'premium-pay',
+                  name: 'Premium Pay Calculator',
+                  icon: '💰',
+                  technology: 'Claude Sonnet 4.5 • Complex reasoning',
+                  status: completedSteps.includes('premium-pay') ? 'completed' : currentStep === 'premium-pay' ? 'running' : 'pending',
+                  duration: stepDurations['premium-pay']
+                },
+                {
+                  id: 'compliance',
+                  name: 'Compliance Validator',
+                  icon: '🛡️',
+                  technology: 'Claude Opus • Legal analysis',
+                  status: completedSteps.includes('compliance') ? 'completed' : currentStep === 'compliance' ? 'running' : 'pending',
+                  duration: stepDurations['compliance'],
+                  subSteps: [
+                    {
+                      id: 'contract-interpreter',
+                      name: 'Contract Interpreter',
+                      icon: '📄',
+                      technology: 'Claude Opus',
+                      status: completedSteps.includes('compliance') ? 'completed' : currentStep === 'compliance' ? 'running' : 'pending',
+                      duration: 4.2
+                    },
+                    {
+                      id: 'historical-precedent',
+                      name: 'Historical Precedent',
+                      icon: '🕐',
+                      technology: 'GPT-4o + Vector DB',
+                      status: completedSteps.includes('compliance') ? 'completed' : currentStep === 'compliance' ? 'running' : 'pending',
+                      duration: 2.1
+                    },
+                    {
+                      id: 'union-rules',
+                      name: 'Union Rules Checker',
+                      icon: '🛡️',
+                      technology: 'Rules Engine',
+                      status: completedSteps.includes('compliance') ? 'completed' : currentStep === 'compliance' ? 'running' : 'pending',
+                      duration: 0.3
+                    }
+                  ]
+                },
+                {
+                  id: 'decision',
+                  name: 'Final Decision',
+                  icon: '⚖️',
+                  technology: 'Claude Sonnet 4.5 • Synthesis',
+                  status: completedSteps.includes('decision') ? 'completed' : currentStep === 'decision' ? 'running' : 'pending',
+                  duration: stepDurations['decision']
+                }
+              ]}
+            />
+          </div>
         )}
       </div>
 

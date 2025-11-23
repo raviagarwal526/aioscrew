@@ -175,6 +175,40 @@ export default function TechnologySelectionMatrix() {
         </div>
       </div>
 
+      {/* Hierarchical Orchestration */}
+      <div className="mt-6 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg border-2 border-indigo-200">
+        <h4 className="font-bold text-indigo-900 mb-3 flex items-center gap-2">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Advanced: Hierarchical Agent Orchestration
+        </h4>
+        <p className="text-sm text-gray-700 mb-3">
+          When complexity increases, our <strong>Compliance Validator</strong> dynamically delegates to specialized sub-agents:
+        </p>
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="p-2 bg-white rounded border border-indigo-200">
+            <div className="font-semibold text-xs text-purple-900 mb-1">📄 Contract Interpreter</div>
+            <div className="text-xs text-gray-600">Claude Opus • Deep legal language analysis</div>
+          </div>
+          <div className="p-2 bg-white rounded border border-indigo-200">
+            <div className="font-semibold text-xs text-blue-900 mb-1">🕐 Historical Precedent</div>
+            <div className="text-xs text-gray-600">GPT-4o + Vector DB • Past case lookup</div>
+          </div>
+          <div className="p-2 bg-white rounded border border-indigo-200">
+            <div className="font-semibold text-xs text-green-900 mb-1">🛡️ Union Rules Checker</div>
+            <div className="text-xs text-gray-600">Rules Engine • Fast compliance checks</div>
+          </div>
+        </div>
+        <div className="p-3 bg-indigo-100 rounded border border-indigo-300">
+          <p className="text-xs text-gray-700">
+            <strong>Why hierarchical?</strong> Parent agents delegate to specialists when encountering edge cases,
+            ambiguous clauses, or conflicting signals. Each sub-agent uses the optimal technology for its domain.
+            The parent synthesizes all sub-agent outputs into a final decision. This mimics human expert consultation.
+          </p>
+        </div>
+      </div>
+
       {/* Real-time Usage Stats */}
       <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg border border-gray-200">
         <h4 className="font-bold text-gray-900 mb-3 text-sm">Current Session Usage</h4>
