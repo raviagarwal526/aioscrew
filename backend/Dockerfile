@@ -22,6 +22,10 @@ FROM node:20-alpine AS frontend-builder
 # Set working directory for frontend
 WORKDIR /app/frontend
 
+# Accept build arguments for Vite environment variables
+ARG VITE_DATABASE_URL
+ARG VITE_API_URL
+
 # Copy frontend package files (from root)
 COPY package*.json ./
 
@@ -39,7 +43,9 @@ COPY tsconfig.node.json ./
 COPY postcss.config.js ./
 COPY tailwind.config.js ./
 
-# Build frontend
+# Build frontend with environment variables
+ENV VITE_DATABASE_URL=$VITE_DATABASE_URL
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # Production stage

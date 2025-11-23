@@ -3,7 +3,11 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "backend/Dockerfile",
-    "buildContext": "."
+    "buildContext": ".",
+    "buildArgs": {
+      "VITE_DATABASE_URL": "${{DATABASE_URL}}",
+      "VITE_API_URL": "https://${{RAILWAY_PUBLIC_DOMAIN}}"
+    }
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
