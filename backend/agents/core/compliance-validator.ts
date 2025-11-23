@@ -3,7 +3,8 @@
  * Detects fraud, duplicates, and policy violations
  */
 
-import { callClaudeWithJSON, buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { callUnifiedLLMWithJSON } from '../shared/unified-llm-client.js';
 import type { AgentInput, AgentResult, Issue } from '../shared/types.js';
 
 const SYSTEM_PROMPT = `You are an expert Compliance Validator and fraud detection specialist for Copa Airlines payroll claims.
@@ -92,11 +93,12 @@ export async function runComplianceValidator(input: AgentInput): Promise<AgentRe
       `Focus on compliance and fraud detection:\n- Any red flags or policy violations?\n- Is this claim within the 7-day filing window?\n- Any unusual patterns in amount or frequency?\n- Is crew qualified for this work?${historicalContext}`
     );
 
-    const { data, raw } = await callClaudeWithJSON<ComplianceResponse>({
+    const { data, raw } = await callUnifiedLLMWithJSON<ComplianceResponse>({
       systemPrompt: SYSTEM_PROMPT,
       userPrompt,
       temperature: 0.2,
-      maxTokens: 2500
+      maxTokens: 2500,
+      agentType: 'compliance-validator' // Will try Ollama first, then fall back to Claude Opus (expensive!)
     });
 
     const duration = (Date.now() - startTime) / 1000;

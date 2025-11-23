@@ -3,7 +3,8 @@
  * Validates premium pay calculations per CBA contract
  */
 
-import { callClaudeWithJSON, buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { callUnifiedLLMWithJSON } from '../shared/unified-llm-client.js';
 import type { AgentInput, AgentResult, ContractReference } from '../shared/types.js';
 
 const SYSTEM_PROMPT = `You are an expert Premium Pay Calculator for Copa Airlines, specializing in Copa Airlines CBA premium pay sections and pay rules.
@@ -77,11 +78,12 @@ export async function runPremiumPayCalculator(input: AgentInput): Promise<AgentR
       `Focus on:\n- What type of premium pay is being claimed: "${input.claim.type}"?\n- Does this claim qualify under CBA rules?\n- Is the amount $${input.claim.amount.toFixed(2)} correct per the CBA rate?\n- Which CBA sections apply?`
     );
 
-    const { data, raw } = await callClaudeWithJSON<PremiumPayResponse>({
+    const { data, raw } = await callUnifiedLLMWithJSON<PremiumPayResponse>({
       systemPrompt: SYSTEM_PROMPT,
       userPrompt,
       temperature: 0.1,
-      maxTokens: 2000
+      maxTokens: 2000,
+      agentType: 'premium-pay-calculator' // Will try Ollama first, then fall back to Claude Sonnet
     });
 
     const duration = (Date.now() - startTime) / 1000;
