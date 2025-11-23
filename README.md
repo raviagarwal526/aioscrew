@@ -14,9 +14,9 @@ An enterprise-grade crew management platform featuring sophisticated multi-agent
 
 This isn't just another automation tool. Aioscrew demonstrates **enterprise-grade AI architecture** with:
 
-- **🧠 Multi-LLM Strategy** - Intelligent routing between GPT-4o, Claude Sonnet, and Claude Opus based on task complexity
+- **🧠 Multi-LLM Strategy** - Intelligent routing between Ollama (local), GPT-4o, Claude Sonnet, and Claude Opus based on task complexity
 - **🏗️ Hierarchical Agents** - Parent agents dynamically delegate to specialized sub-agents
-- **💰 Cost Optimization** - 66% cost savings through intelligent technology selection
+- **💰 Cost Optimization** - Up to 100% cost savings with Ollama local LLM, or 66% savings through intelligent cloud routing
 - **⚡ Parallel Execution** - 3x faster processing (20s vs 60s) via concurrent agent orchestration
 - **🎯 Educational UX** - Visual pipeline showing which AI does what and why
 - **📊 Transparent Reasoning** - See every decision the AI makes in real-time
@@ -53,7 +53,8 @@ This isn't just another automation tool. Aioscrew demonstrates **enterprise-grad
 
 ### AI Agent System
 - ✅ **Real-time claim validation** in 15-20 seconds (3x faster than sequential)
-- ✅ **Multi-LLM architecture** - GPT-4o-mini, Claude Sonnet, Claude Opus, Rules Engines
+- ✅ **Multi-LLM architecture** - Ollama (local), GPT-4o-mini, Claude Sonnet, Claude Opus, Rules Engines
+- ✅ **FREE local inference** - Ollama prioritized first for zero-cost operations
 - ✅ **Hierarchical orchestration** - Agents calling specialized sub-agents
 - ✅ **Parallel execution** - All agents run simultaneously
 - ✅ **Visual pipeline** - See agents working in real-time with timeline visualization
@@ -87,6 +88,7 @@ This isn't just another automation tool. Aioscrew demonstrates **enterprise-grad
 - **Node.js 20** + **Express** - High-performance API
 - **TypeScript** - End-to-end type safety
 - **Multi-LLM Integration:**
+  - **Ollama** (Priority 0) - FREE local GPU inference, always tried first
   - **Anthropic Claude** (Sonnet 4.5, Opus) - Complex reasoning, legal analysis
   - **OpenAI GPT-4o-mini** - Fast calculations, structured tasks
   - **Native Rules Engine** - Deterministic logic (free, <100ms)
@@ -138,7 +140,8 @@ Orchestrator (Claude Sonnet 4.5)
 ### Prerequisites
 - Node.js 20+
 - PostgreSQL (or Neon account)
-- Anthropic API key
+- **Ollama** (recommended for FREE local inference) - [Setup Guide](./OLLAMA_SETUP.md)
+- Anthropic API key (fallback for complex tasks)
 - OpenAI API key (optional, for GPT-4o-mini)
 
 ### Installation
@@ -164,8 +167,12 @@ cd backend && npm run dev  # Backend (port 3001)
 ### Environment Variables
 
 ```bash
-# Multi-LLM Configuration
-ANTHROPIC_API_KEY=sk-ant-xxx  # Required
+# 🚀 Ollama (FREE local LLM - Recommended!)
+OLLAMA_BASE_URL=http://localhost:11434  # Local Ollama server
+OLLAMA_MODEL=llama3.2:latest            # Model to use
+
+# Multi-LLM Configuration (Fallbacks)
+ANTHROPIC_API_KEY=sk-ant-xxx  # Required for complex tasks
 OPENAI_API_KEY=sk-proj-xxx     # Optional (for GPT-4o-mini)
 GOOGLE_API_KEY=AIzaSy-xxx      # Optional (future Gemini support)
 XAI_API_KEY=xai-xxx            # Optional (future Grok support)
@@ -180,6 +187,7 @@ FRONTEND_URL=http://localhost:5173
 ```
 
 [📚 Complete setup guide](./SETUP_GUIDE.md)
+[🚀 Ollama setup guide](./OLLAMA_SETUP.md) ⭐ **Save $100+/month on API costs!**
 
 ---
 
@@ -187,6 +195,7 @@ FRONTEND_URL=http://localhost:5173
 
 ### Core Documentation
 - **[AI Architecture](./AI_ARCHITECTURE.md)** ⭐ - Multi-LLM strategy, hierarchical agents, cost analysis
+- **[Ollama Setup](./OLLAMA_SETUP.md)** 🚀 - FREE local LLM setup (save $100+/month!)
 - **[API Documentation](./API_DOCUMENTATION.md)** - Complete REST API reference
 - **[Railway Deployment](./RAILWAY_DEPLOYMENT.md)** - Production deployment guide
 - **[Setup Guide](./SETUP_GUIDE.md)** - Development environment setup

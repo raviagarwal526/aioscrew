@@ -195,7 +195,8 @@ export async function runComplianceValidator(input: AgentInput): Promise<AgentRe
       systemPrompt,
       userPrompt,
       temperature: 0.2,
-      maxTokens: 2500
+      maxTokens: 2500,
+      agentType: 'compliance-validator' // Will try Ollama first, then fall back to Claude Opus (expensive!)
     });
 
     const duration = (Date.now() - startTime) / 1000;

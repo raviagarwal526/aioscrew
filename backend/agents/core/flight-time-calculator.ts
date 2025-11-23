@@ -3,7 +3,8 @@
  * Validates flight time data and trip details
  */
 
-import { callClaudeWithJSON, buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { buildClaimValidationPrompt } from '../shared/claude-client.js';
+import { callUnifiedLLMWithJSON } from '../shared/unified-llm-client.js';
 import type { AgentInput, AgentResult } from '../shared/types.js';
 
 const SYSTEM_PROMPT = `You are an expert Flight Time Calculator for Copa Airlines, specializing in validating flight time calculations and trip data according to FAA regulations and Copa Airlines CBA.
@@ -58,11 +59,12 @@ export async function runFlightTimeCalculator(input: AgentInput): Promise<AgentR
       `Focus on validating:\n- Does the trip ${input.claim.tripId} exist and match flight ${input.claim.flightNumber}?\n- Are the flight times accurate for this route?\n- Does the trip date align with the claim submission?`
     );
 
-    const { data, raw } = await callClaudeWithJSON<FlightTimeResponse>({
+    const { data, raw } = await callUnifiedLLMWithJSON<FlightTimeResponse>({
       systemPrompt: SYSTEM_PROMPT,
       userPrompt,
       temperature: 0.1, // Low temperature for factual analysis
-      maxTokens: 1500
+      maxTokens: 1500,
+      agentType: 'flight-time-calculator' // Will try Ollama first, then fall back to OpenAI
     });
 
     const duration = (Date.now() - startTime) / 1000;

@@ -219,7 +219,8 @@ export async function runPremiumPayCalculator(input: AgentInput): Promise<AgentR
       systemPrompt,
       userPrompt,
       temperature: 0.1,
-      maxTokens: 2000
+      maxTokens: 2000,
+      agentType: 'premium-pay-calculator' // Will try Ollama first, then fall back to Claude Sonnet
     });
 
     const duration = (Date.now() - startTime) / 1000;
