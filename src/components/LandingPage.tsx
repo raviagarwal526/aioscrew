@@ -1,4 +1,4 @@
-import { Plane, Calendar, Target, DollarSign, BarChart3, Scale } from 'lucide-react';
+import { Plane, Calendar, Target, DollarSign, BarChart3, Scale, Building2 } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface LandingPageProps {
@@ -77,6 +77,18 @@ const personas = [
       'Member advocacy analytics'
     ],
     color: 'from-teal-500 to-teal-600'
+  },
+  {
+    role: 'executive' as UserRole,
+    icon: Building2,
+    title: 'Executive Dashboard',
+    subtitle: 'C-Suite Leadership',
+    capabilities: [
+      'Complete airline operations overview',
+      'Multi-level operational dashboards',
+      'Strategic KPI monitoring'
+    ],
+    color: 'from-indigo-500 to-indigo-600'
   }
 ];
 

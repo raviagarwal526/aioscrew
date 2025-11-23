@@ -4,7 +4,8 @@ export type UserRole =
   | 'controller'
   | 'payroll'
   | 'management'
-  | 'union';
+  | 'union'
+  | 'executive';
 
 export interface CrewMember {
   id: string;

@@ -10,6 +10,8 @@ import ControllerView from './views/ControllerView';
 import PayrollViewImproved from './views/PayrollViewImproved';
 import ManagementView from './views/ManagementView';
 import UnionView from './views/UnionView';
+import ExecutiveDashboard from './components/executive/ExecutiveDashboard';
+import { LogOut } from 'lucide-react';
 
 function App() {
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -49,6 +51,10 @@ function App() {
     'union': {
       component: <UnionView />,
       title: 'Union Compliance Center'
+    },
+    'executive': {
+      component: <ExecutiveDashboard />,
+      title: 'Executive Dashboard'
     }
   };
 
@@ -61,6 +67,39 @@ function App() {
   }
 
   const currentView = roleViews[currentRole];
+
+  // Executive dashboard is a full-page component without the standard layout
+  if (currentRole === 'executive') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-lg">
+          <div className="container mx-auto px-6">
+            <div className="flex items-center justify-between h-20">
+              <div className="flex items-center space-x-4">
+                <img
+                  src="/image copy.png"
+                  alt="Copa Airlines"
+                  className="h-12 w-auto"
+                />
+                <div className="border-l border-white/30 pl-4">
+                  <h1 className="text-xl font-bold">{currentView.title}</h1>
+                  <p className="text-xs text-blue-400">Crew Operating System</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        {currentView.component}
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout
