@@ -3,6 +3,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { neon } from '@neondatabase/serverless';
 import { orchestrateClaimValidation } from '../../agents/core/orchestrator.js';
 import {
   getClaimById,
@@ -15,6 +16,7 @@ import type { AgentInput } from '../../agents/shared/types.js';
 import { runTestDataGenerator } from '../../agents/core/test-data-generator.js';
 
 const router = Router();
+const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
 
 /**
  * POST /api/agents/validate
@@ -149,7 +151,7 @@ router.get('/health', (req: Request, res: Response) => {
  */
 router.post('/test-data/generate', async (req: Request, res: Response) => {
   try {
-    const { config, scenarioId } = req.body || {};
+    const { config, scenarioId, llmPreference } = req.body || {};
 
     if (!config || typeof config !== 'object') {
       return res.status(400).json({
@@ -157,12 +159,52 @@ router.post('/test-data/generate', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await runTestDataGenerator(config, scenarioId);
+    const result = await runTestDataGenerator(config, scenarioId, llmPreference);
     res.json(result);
   } catch (error) {
     console.error('❌ Test data generation error:', error);
     res.status(500).json({
       error: 'Failed to generate test data blueprint',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * POST /api/agents/test-data/cleanup
+ * Removes generated test data from primary tables so teams can start fresh.
+ */
+router.post('/test-data/cleanup', async (req: Request, res: Response) => {
+  try {
+    if (!sql) {
+      return res.status(500).json({
+        error: 'Database not configured'
+      });
+    }
+
+    const { preserveCrew = true } = req.body || {};
+    await sql`
+      TRUNCATE TABLE pay_claims, trips, disruptions, compliance_violations
+      RESTART IDENTITY CASCADE
+    `;
+
+    if (!preserveCrew) {
+      await sql`
+        TRUNCATE TABLE crew_members
+        RESTART IDENTITY CASCADE
+      `;
+    }
+
+    res.json({
+      success: true,
+      message: 'Test data tables cleared. You can generate a fresh dataset.',
+      clearedScenarios: true,
+      crewPreserved: preserveCrew
+    });
+  } catch (error) {
+    console.error('❌ Test data cleanup error:', error);
+    res.status(500).json({
+      error: 'Failed to clean up test data',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

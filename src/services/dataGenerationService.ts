@@ -1,4 +1,3 @@
-import { crewService } from './crewService';
 import type { CrewMember, Trip, Claim } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL ||
@@ -74,8 +73,40 @@ interface GenerationConfig {
   generateEdgeCases: boolean;
 }
 
+export interface TestDataAgentResponse {
+  scenarioId?: string | null;
+  stats: {
+    crewMembers: number;
+    trips: number;
+    claims: number;
+    violations: number;
+    disruptions: number;
+    timeSpan: string;
+    dataPoints: number;
+  };
+  aiPlan: {
+    summary: string;
+    recommendedSteps?: string[];
+    qaChecklist?: string[];
+    datasetSamples?: {
+      crewMembers?: Array<{ name: string; role: string; base: string; focus?: string }>;
+      trips?: Array<{ route: string; flightNumber?: string; seasonality?: string; notes?: string }>;
+      claims?: Array<{ claimType: string; pattern?: string; amountHint?: string; contractReference?: string }>;
+    };
+    riskAlerts?: string[];
+  };
+  provider: string;
+  model: string;
+  tokensUsed: number;
+  generatedAt: string;
+  warning?: string;
+}
+
+type CrewRole = 'Captain' | 'First Officer' | 'Senior FA' | 'Junior FA';
+
 class DataGenerationService {
   private random = Math.random;
+  private llmBlueprintCache = new Map<string, TestDataAgentResponse>();
 
   // Utility: Random selection from array
   private randomChoice<T>(array: T[]): T {
@@ -111,7 +142,7 @@ class DataGenerationService {
   // Generate realistic crew member
   private generateCrewMember(
     id: string,
-    role: 'Captain' | 'First Officer' | 'Senior FA' | 'Junior FA',
+    role: CrewRole,
     config: GenerationConfig
   ): Omit<CrewMember, 'id'> {
     const firstName = this.randomChoice(FIRST_NAMES);
@@ -260,20 +291,22 @@ class DataGenerationService {
         amount = 125;
         contractRef = 'CBA Section 12.4.1';
         break;
-      case 'Per Diem':
+      case 'Per Diem': {
         const days = this.randomInt(1, 4);
         amount = (trip.is_international ? 95 : 75) * days;
         contractRef = 'CBA Section 8.2';
         break;
+      }
       case 'Holiday Pay':
         amount = 150;
         contractRef = 'CBA Section 11.3';
         break;
-      case 'Overtime':
+      case 'Overtime': {
         const hours = this.randomInt(5, 20);
         amount = hours * 85 * 1.5;
         contractRef = 'CBA Section 7.1';
         break;
+      }
       case 'Layover Premium':
         amount = 50;
         contractRef = 'CBA Section 9.5';
@@ -364,13 +397,13 @@ class DataGenerationService {
 
     for (let i = 0; i < config.totalCrewMembers; i++) {
       const rand = this.random();
-      let role: any = 'Captain';
+      let role: CrewRole = 'Captain';
       let cumulative = 0;
 
       for (const [r, weight] of Object.entries(roleDistribution)) {
         cumulative += weight;
         if (rand < cumulative) {
-          role = r;
+          role = r as CrewRole;
           break;
         }
       }
@@ -462,16 +495,37 @@ class DataGenerationService {
     // using the crewService or a direct database connection
   }
 
+  private buildCacheKey(
+    config: GenerationConfig,
+    scenarioId?: string | null,
+    llmPreference?: { provider?: string; model?: string }
+  ): string {
+    return JSON.stringify({
+      scenarioId: scenarioId || 'custom',
+      llm: llmPreference?.provider || 'auto',
+      model: llmPreference?.model,
+      config
+    });
+  }
+
   async requestLLMBlueprint(
     config: GenerationConfig,
-    scenarioId?: string | null
-  ): Promise<any> {
+    scenarioId?: string | null,
+    llmPreference?: { provider?: 'ollama' | 'anthropic'; model?: string; skipOllama?: boolean }
+  ): Promise<TestDataAgentResponse> {
+    const cacheKey = this.buildCacheKey(config, scenarioId, llmPreference);
+    const cached = this.llmBlueprintCache.get(cacheKey);
+    if (cached) {
+      return JSON.parse(JSON.stringify(cached)) as TestDataAgentResponse;
+    }
+
     const response = await fetch(`${API_URL}/api/agents/test-data/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         config,
-        scenarioId
+        scenarioId,
+        llmPreference
       })
     });
 
@@ -486,7 +540,47 @@ class DataGenerationService {
       throw new Error(message);
     }
 
-    return response.json();
+    const payload = await response.json() as TestDataAgentResponse;
+    this.llmBlueprintCache.set(cacheKey, payload);
+    return payload;
+  }
+
+  async cleanupTestData(preserveCrew = true): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await fetch(`${API_URL}/api/agents/test-data/cleanup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preserveCrew })
+      });
+
+      if (!response.ok) {
+        let message = 'Failed to clean up test data';
+        try {
+          const error = await response.json();
+          message = error?.message || error?.error || message;
+        } catch (err) {
+          console.warn('Failed to parse cleanup error response:', err);
+        }
+        return { success: false, message };
+      }
+
+      const payload = await response.json();
+      if (payload?.clearedScenarios) {
+        // Reset cache for cleared scenarios to avoid stale data reuse
+        this.llmBlueprintCache.clear();
+      }
+      return { success: true, message: payload?.message };
+    } catch (error) {
+      console.error('Cleanup error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Cleanup request failed'
+      };
+    }
+  }
+
+  clearBlueprintCache(): void {
+    this.llmBlueprintCache.clear();
   }
 }
 

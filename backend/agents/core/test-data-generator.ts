@@ -258,12 +258,19 @@ function buildFallbackPlan(stats: GenerationStats, config: TestDataConfig): Test
   };
 }
 
+export interface LLMPreference {
+  provider?: 'ollama' | 'anthropic' | 'openai';
+  model?: string;
+  skipOllama?: boolean;
+}
+
 /**
  * Execute the test data generation agent (Ollama-first).
  */
 export async function runTestDataGenerator(
   partialConfig: Partial<TestDataConfig> = {},
-  scenarioId?: string | null
+  scenarioId?: string | null,
+  llmPreference?: LLMPreference
 ): Promise<TestDataAgentResult> {
   const config = normalizeConfig(partialConfig);
   const stats = calculateStats(config);
@@ -276,7 +283,10 @@ export async function runTestDataGenerator(
       userPrompt: buildUserPrompt(config, stats, scenarioId),
       temperature: 0.2,
       maxTokens: 1400,
-      agentType: 'test-data-generator'
+      agentType: 'test-data-generator',
+      forceProvider: llmPreference?.provider,
+      forceModel: llmPreference?.model,
+      skipOllama: llmPreference?.skipOllama
     });
 
     return {

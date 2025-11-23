@@ -105,6 +105,22 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
       cost: '$0 (local GPU)',
       avgLatency: '2-5 seconds (with GPU)',
       priority: 0
+    },
+    {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5-20250929',
+      reasoning: 'Paid cloud option when Ollama is not available or you need faster throughput',
+      cost: '$3 per 1M tokens (input), $15 per 1M tokens (output)',
+      avgLatency: '5-7 seconds',
+      priority: 1
+    },
+    {
+      provider: 'anthropic',
+      model: 'claude-opus-4-20250514',
+      reasoning: 'Highest-fidelity paid option for massive synthetic data blueprints',
+      cost: '$15 per 1M tokens (input), $75 per 1M tokens (output)',
+      avgLatency: '9-12 seconds',
+      priority: 2
     }
   ],
 

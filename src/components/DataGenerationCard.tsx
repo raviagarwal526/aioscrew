@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Database, Users, Plane, DollarSign, AlertTriangle, Calendar,
   Globe, Settings, Play, CheckCircle, Loader, TrendingUp,
-  Award, Clock, Briefcase, MapPin, Zap, X, ChevronDown, ChevronUp
+  Award, Clock, Briefcase, Zap, X, ChevronDown, ChevronUp,
+  Brain, Sparkles, Trash2, ShieldAlert, RefreshCcw
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import type { TestDataAgentResponse } from '../services/dataGenerationService';
 
 interface DataGenerationConfig {
   // Crew configuration
@@ -54,10 +57,78 @@ interface ScenarioPreset {
   id: string;
   name: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   config: Partial<DataGenerationConfig>;
   highlights: string[];
 }
+
+interface LLMOption {
+  id: string;
+  name: string;
+  provider: 'ollama' | 'anthropic';
+  model?: string;
+  description: string;
+  cost: string;
+  latency: string;
+  tier: 'free' | 'paid';
+  default?: boolean;
+  caution?: string;
+}
+
+interface GenerationSuccessSummary {
+  success: true;
+  crewMembers: number;
+  trips: number;
+  claims: number;
+  violations: number;
+  dataPoints: number;
+  timestamp: string;
+  aiInsights?: TestDataAgentResponse;
+}
+
+interface GenerationFailureSummary {
+  success: false;
+  error: string;
+}
+
+type GenerationResult = GenerationSuccessSummary | GenerationFailureSummary;
+
+const LLM_OPTIONS: LLMOption[] = [
+  {
+    id: 'ollama-local',
+    name: 'Ollama Local (Default)',
+    provider: 'ollama',
+    model: 'llama3.2:latest',
+    description: 'Zero-cost local inference. Ideal for most test data creation flows.',
+    cost: '$0 (local GPU)',
+    latency: '2-5s',
+    tier: 'free',
+    default: true
+  },
+  {
+    id: 'claude-sonnet',
+    name: 'Claude Sonnet (Paid)',
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-5-20250929',
+    description: 'Balanced paid option when you need faster throughput or Ollama is unavailable.',
+    cost: '$3 in / $15 out per 1M tokens',
+    latency: '5-7s',
+    tier: 'paid'
+  },
+  {
+    id: 'claude-opus',
+    name: 'Claude Opus (Premium)',
+    provider: 'anthropic',
+    model: 'claude-opus-4-20250514',
+    description: 'Highest-fidelity reasoning for massive or highly nuanced scenario design.',
+    cost: '$15 in / $75 out per 1M tokens',
+    latency: '9-12s',
+    tier: 'paid',
+    caution: 'Use only when you truly need exhaustive reasoning.'
+  }
+];
+
+const MASSIVE_DATA_THRESHOLD = 250000;
 
 const SCENARIO_PRESETS: ScenarioPreset[] = [
   {
@@ -266,9 +337,15 @@ export default function DataGenerationCard() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
-    const [generationResult, setGenerationResult] = useState<any>(null);
+    const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
     const [showPreview, setShowPreview] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
+  const [selectedLLMId, setSelectedLLMId] = useState<string>(
+    LLM_OPTIONS.find((option) => option.default)?.id || LLM_OPTIONS[0].id
+  );
+  const [confirmPaidUsage, setConfirmPaidUsage] = useState(false);
+  const [cleanupStatus, setCleanupStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isCleaning, setIsCleaning] = useState(false);
 
   const handleScenarioSelect = (scenario: ScenarioPreset) => {
     setSelectedScenario(scenario.id);
@@ -292,7 +369,22 @@ export default function DataGenerationCard() {
     };
   };
 
+  const stats = calculateGenerationStats();
+  const selectedLLM = LLM_OPTIONS.find((option) => option.id === selectedLLMId) || LLM_OPTIONS[0];
+  const isMassiveRun = stats.dataPoints >= MASSIVE_DATA_THRESHOLD;
+  const requiresPaidConfirmation = selectedLLM.tier === 'paid' && isMassiveRun;
+
+  useEffect(() => {
+    if (!requiresPaidConfirmation) {
+      setConfirmPaidUsage(false);
+    }
+  }, [requiresPaidConfirmation, selectedLLMId]);
+
     const handleGenerate = async () => {
+      if (requiresPaidConfirmation && !confirmPaidUsage) {
+        return;
+      }
+
       setIsGenerating(true);
       setProgress(0);
       setGenerationResult(null);
@@ -326,9 +418,21 @@ export default function DataGenerationCard() {
 
         // Step 7: Request AI blueprint (Ollama-first)
         setProgress(92);
-        let aiInsights: any = null;
+        let aiInsights: TestDataAgentResponse | null = null;
         try {
-          aiInsights = await dataGenerationService.requestLLMBlueprint(config, selectedScenario);
+          const llmPreference =
+            selectedLLM.provider === 'ollama'
+              ? { provider: 'ollama' as const }
+              : {
+                  provider: 'anthropic' as const,
+                  model: selectedLLM.model,
+                  skipOllama: true
+                };
+          aiInsights = await dataGenerationService.requestLLMBlueprint(
+            config,
+            selectedScenario,
+            llmPreference
+          );
         } catch (aiErr) {
           console.warn('AI blueprint unavailable:', aiErr);
           setAiError(aiErr instanceof Error ? aiErr.message : 'Unable to reach AI blueprint service');
@@ -346,12 +450,12 @@ export default function DataGenerationCard() {
         dataPoints: data.crewMembers.length + data.trips.length + data.claims.length
       };
 
-      setGenerationResult({
-        success: true,
-        ...stats,
+        setGenerationResult({
+          success: true,
+          ...stats,
           timestamp: new Date().toISOString(),
-          aiInsights
-      });
+          aiInsights: aiInsights ?? undefined
+        });
     } catch (error) {
       console.error('Generation error:', error);
       setGenerationResult({
@@ -363,12 +467,40 @@ export default function DataGenerationCard() {
     }
   };
 
-    const stats = calculateGenerationStats();
-    const aiPlan = generationResult?.aiInsights?.aiPlan;
-    const aiMeta = generationResult?.aiInsights;
-    const crewSamples = aiPlan?.datasetSamples?.crewMembers ?? [];
-    const tripSamples = aiPlan?.datasetSamples?.trips ?? [];
-    const claimSamples = aiPlan?.datasetSamples?.claims ?? [];
+  const handleCleanup = async () => {
+    setIsCleaning(true);
+    setCleanupStatus(null);
+    const result = await dataGenerationService.cleanupTestData(true);
+    setIsCleaning(false);
+
+    if (result.success) {
+      setGenerationResult(null);
+      setSelectedScenario(null);
+      setConfig(DEFAULT_CONFIG);
+      setShowPreview(false);
+      setProgress(0);
+      setSelectedLLMId(LLM_OPTIONS.find((option) => option.default)?.id || LLM_OPTIONS[0].id);
+      setConfirmPaidUsage(false);
+      dataGenerationService.clearBlueprintCache();
+      setCleanupStatus({
+        type: 'success',
+        message: result.message || 'All generated test data has been cleared. Ready for a fresh run.'
+      });
+    } else {
+      setCleanupStatus({
+        type: 'error',
+        message: result.message || 'Failed to clean up test data. Please verify the backend connection.'
+      });
+    }
+  };
+
+  const disableGenerate = isGenerating || (requiresPaidConfirmation && !confirmPaidUsage);
+  const aiInsights = generationResult && generationResult.success ? generationResult.aiInsights : undefined;
+  const aiPlan = aiInsights?.aiPlan;
+  const aiMeta = aiInsights;
+  const crewSamples = aiPlan?.datasetSamples?.crewMembers ?? [];
+  const tripSamples = aiPlan?.datasetSamples?.trips ?? [];
+  const claimSamples = aiPlan?.datasetSamples?.claims ?? [];
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
@@ -438,7 +570,7 @@ export default function DataGenerationCard() {
         )}
       </div>
 
-      {/* Quick Stats Preview */}
+        {/* Quick Stats Preview */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
           <div className="flex items-center gap-2 mb-1">
@@ -480,6 +612,117 @@ export default function DataGenerationCard() {
           <div className="text-2xl font-bold text-teal-900">{stats.timeSpan}</div>
         </div>
       </div>
+
+        {/* LLM Selection */}
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white rounded-lg shadow-sm">
+              <Brain className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">LLM Routing Preferences</h3>
+              <p className="text-sm text-gray-600">Pick the model before submitting test data creation.</p>
+            </div>
+          </div>
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 space-y-3">
+              <label className="text-sm font-medium text-gray-700">Preferred Provider</label>
+              <select
+                value={selectedLLMId}
+                onChange={(e) => setSelectedLLMId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                {LLM_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name} — {option.cost}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">
+                We cache AI blueprints for identical scenario + LLM combinations, so reruns with the same
+                settings reuse previous insights instantly.
+              </p>
+              <div className="text-sm text-gray-700">
+                <div className="font-semibold text-gray-900">Currently selected:</div>
+                <div>
+                  {selectedLLM.name}{' '}
+                  <span className="text-xs text-gray-500">
+                    ({selectedLLM.cost} • {selectedLLM.latency})
+                  </span>
+                </div>
+              </div>
+              {requiresPaidConfirmation ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2 text-sm text-amber-900">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <div>
+                      You are requesting ~{stats.dataPoints.toLocaleString()} data points with a paid LLM.
+                      Please confirm you want to incur potential costs before proceeding.
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-amber-900 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={confirmPaidUsage}
+                      onChange={(e) => setConfirmPaidUsage(e.target.checked)}
+                      className="w-4 h-4 text-amber-600"
+                    />
+                    Yes, continue with {selectedLLM.name} for this large run.
+                  </label>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-green-700">
+                  <Sparkles className="w-4 h-4" />
+                  <span>
+                    {selectedLLM.tier === 'free'
+                      ? 'Ollama stays free and local for this run.'
+                      : 'Paid LLM selected for a normal-sized batch.'}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="lg:w-80 space-y-3">
+              {LLM_OPTIONS.map((option) => {
+                const isSelected = option.id === selectedLLMId;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setSelectedLLMId(option.id)}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-white shadow-sm'
+                        : 'border-transparent bg-white hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">{option.name}</p>
+                        <p className="text-xs text-gray-500">{option.description}</p>
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          option.tier === 'free'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {option.tier === 'free' ? 'Free' : 'Paid'}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500 space-y-1">
+                      <div>Cost: {option.cost}</div>
+                      <div>Latency: {option.latency}</div>
+                      {option.caution && (
+                        <div className="text-amber-700">⚠ {option.caution}</div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
       {/* Advanced Configuration */}
       <div>
@@ -607,11 +850,12 @@ export default function DataGenerationCard() {
         )}
       </div>
 
-      {/* Generation Actions */}
-      <div className="flex items-center gap-3">
+        {/* Generation Actions */}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
         <button
           onClick={handleGenerate}
-          disabled={isGenerating}
+              disabled={disableGenerate}
           className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all"
         >
           {isGenerating ? (
@@ -633,6 +877,37 @@ export default function DataGenerationCard() {
         >
           Preview
         </button>
+
+            <button
+              onClick={handleCleanup}
+              disabled={isGenerating || isCleaning}
+              className="px-6 py-3 border-2 border-red-200 text-red-700 rounded-lg hover:bg-red-50 font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isCleaning ? (
+                <>
+                  <Loader className="w-4 h-4 animate-spin" />
+                  Cleaning...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Clean Test Data
+                </>
+              )}
+            </button>
+          </div>
+          {cleanupStatus && (
+            <div
+              className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 border ${
+                cleanupStatus.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-800'
+                  : 'bg-red-50 border-red-200 text-red-800'
+              }`}
+            >
+              {cleanupStatus.type === 'success' ? <RefreshCcw className="w-4 h-4" /> : <X className="w-4 h-4" />}
+              <span>{cleanupStatus.message}</span>
+            </div>
+          )}
       </div>
 
       {/* Progress Bar */}

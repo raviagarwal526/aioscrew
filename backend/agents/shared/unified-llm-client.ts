@@ -7,8 +7,8 @@
  * 3. Warns about expensive operations
  */
 
-import { callOllama, callOllamaWithJSON, isOllamaAvailable } from './ollama-client.js';
-import { callClaude, callClaudeWithJSON, ClaudeCallOptions, ClaudeResponse } from './claude-client.js';
+import { callOllama, isOllamaAvailable } from './ollama-client.js';
+import { callClaude } from './claude-client.js';
 import { getLLMConfigs, LLMProviderConfig, COST_OPTIMIZATION } from '../config/llm-provider-config.js';
 
 export interface UnifiedLLMOptions {
@@ -18,6 +18,7 @@ export interface UnifiedLLMOptions {
   maxTokens?: number;
   agentType: string;
   forceProvider?: 'ollama' | 'anthropic' | 'openai';
+  forceModel?: string;
   skipOllama?: boolean; // Skip Ollama and go straight to cloud
 }
 
@@ -98,6 +99,7 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
     maxTokens = 2000,
     agentType,
     forceProvider,
+    forceModel,
     skipOllama = false
   } = options;
 
@@ -111,6 +113,9 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
   for (const config of configs) {
     // Skip if forced to specific provider
     if (forceProvider && config.provider !== forceProvider) {
+      continue;
+    }
+    if (forceModel && config.model !== forceModel) {
       continue;
     }
 
@@ -214,7 +219,7 @@ export async function callUnifiedLLMWithJSON<T>(
     const data = JSON.parse(jsonStr) as T;
     return { data, raw: response };
   } catch (error) {
-    console.error('Failed to parse LLM response as JSON:', response.content);
+    console.error('Failed to parse LLM response as JSON:', response.content, error);
     throw new Error('LLM response was not valid JSON');
   }
 }
