@@ -30,10 +30,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Request timeout (30 seconds)
+// Request timeout (2 minutes for AI agent processing)
 app.use((req, res, next) => {
-  req.setTimeout(30000);
-  res.setTimeout(30000);
+  req.setTimeout(120000);
+  res.setTimeout(120000);
   next();
 });
 
