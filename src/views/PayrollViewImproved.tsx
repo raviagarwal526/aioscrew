@@ -3,6 +3,7 @@ import { BarChart3, DollarSign, FileText, TrendingUp, Users, Play, RefreshCw } f
 import AgentActivityFeed from '../components/agents/AgentActivityFeed';
 import ClaimCard from '../components/agents/ClaimCard';
 import AIValidationPipeline from '../components/agents/AIValidationPipeline';
+import TechnologySelectionMatrix from '../components/agents/TechnologySelectionMatrix';
 import { ClaimData, AgentActivity } from '../types/agents';
 import { mockClaims, validateClaimWithAgents, createAgentActivity } from '../services/agentService';
 
@@ -293,6 +294,9 @@ export default function PayrollViewImproved() {
           ))
         )}
       </div>
+
+      {/* Technology Selection Matrix */}
+      <TechnologySelectionMatrix />
     </div>
   );
 }
