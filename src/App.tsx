@@ -41,7 +41,7 @@ function App() {
       title: 'Operations Control Center'
     },
     'payroll': {
-      component: <PayrollViewImproved />,
+      component: <PayrollViewImproved activeView={activeView} />,
       title: 'Payroll Administration - AI Agent System'
     },
     'management': {
