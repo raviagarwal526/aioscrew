@@ -143,6 +143,12 @@ export async function executeWriteQuery<T = any>(
 export async function getContractSectionsForClaimType(
   claimType: string
 ): Promise<ContractReference[]> {
+  // Validate parameter before querying
+  if (!claimType || typeof claimType !== 'string' || claimType.trim() === '') {
+    console.warn('getContractSectionsForClaimType called with invalid claimType:', claimType);
+    return [];
+  }
+
   try {
     const query = `
       MATCH (section:ContractSection)-[:APPLIES_TO]->(claimType:ClaimType {type: $claimType})
@@ -204,6 +210,12 @@ export async function getComplianceRules(ruleType: string): Promise<any[]> {
  * Query premium pay rates for a specific pay type
  */
 export async function getPremiumPayRate(payType: string): Promise<any | null> {
+  // Validate parameter before querying
+  if (!payType || typeof payType !== 'string' || payType.trim() === '') {
+    console.warn('getPremiumPayRate called with invalid payType:', payType);
+    return null;
+  }
+
   try {
     const query = `
       MATCH (rate:PremiumPayRate {type: $payType})

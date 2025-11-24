@@ -160,18 +160,22 @@ export async function runPremiumPayCalculator(input: AgentInput): Promise<AgentR
   try {
     // Query Neo4j for premium pay rate for this claim type
     let premiumPayRate: any = null;
-    try {
-      premiumPayRate = await getPremiumPayRate(input.claim.type);
-    } catch (error) {
-      console.warn('Could not fetch premium pay rate from Neo4j:', error);
+    if (input.claim?.type) {
+      try {
+        premiumPayRate = await getPremiumPayRate(input.claim.type);
+      } catch (error) {
+        console.warn('Could not fetch premium pay rate from Neo4j:', error);
+      }
     }
 
     // Query Neo4j for contract sections relevant to this claim type
     let contractReferences: ContractReference[] = [];
-    try {
-      contractReferences = await getContractSectionsForClaimType(input.claim.type);
-    } catch (error) {
-      console.warn('Could not fetch contract references from Neo4j:', error);
+    if (input.claim?.type) {
+      try {
+        contractReferences = await getContractSectionsForClaimType(input.claim.type);
+      } catch (error) {
+        console.warn('Could not fetch contract references from Neo4j:', error);
+      }
     }
 
     // Build system prompt from Neo4j data
@@ -213,7 +217,7 @@ export async function runPremiumPayCalculator(input: AgentInput): Promise<AgentR
       input.claim,
       input.trip,
       input.crew,
-      `Focus on:\n- What type of premium pay is being claimed: "${input.claim.type}"?\n- Does this claim qualify under CBA rules?\n- Is the amount $${input.claim.amount.toFixed(2)} correct per the CBA rate?\n- Which CBA sections apply?${rateContext}${contractContext}`
+      `Focus on:\n- What type of premium pay is being claimed: "${input.claim.type}"?\n- Does this claim qualify under CBA rules?\n- Is the amount $${(input.claim.amount ?? 0).toFixed(2)} correct per the CBA rate?\n- Which CBA sections apply?${rateContext}${contractContext}`
     );
 
     const { data, raw } = await callUnifiedLLMWithJSON<PremiumPayResponse>({

@@ -140,7 +140,7 @@ export function buildClaimValidationPrompt(
   prompt += `- Claim Number: ${claim.claimNumber}\n`;
   prompt += `- Crew Member: ${claim.crewMemberName} (${claim.crewMemberId})\n`;
   prompt += `- Type: ${claim.type}\n`;
-  prompt += `- Amount: $${claim.amount.toFixed(2)}\n`;
+  prompt += `- Amount: $${(claim.amount ?? 0).toFixed(2)}\n`;
   prompt += `- Submitted: ${new Date(claim.submittedDate).toLocaleDateString()}\n`;
   if (claim.description) {
     prompt += `- Description: ${claim.description}\n`;

@@ -151,10 +151,12 @@ export async function runComplianceValidator(input: AgentInput): Promise<AgentRe
   try {
     // Query Neo4j for contract sections relevant to this claim type
     let contractReferences: ContractReference[] = [];
-    try {
-      contractReferences = await getContractSectionsForClaimType(input.claim.type);
-    } catch (error) {
-      console.warn('Could not fetch contract references from Neo4j:', error);
+    if (input.claim?.type) {
+      try {
+        contractReferences = await getContractSectionsForClaimType(input.claim.type);
+      } catch (error) {
+        console.warn('Could not fetch contract references from Neo4j:', error);
+      }
     }
 
     // Build system prompt from Neo4j data
@@ -165,13 +167,13 @@ export async function runComplianceValidator(input: AgentInput): Promise<AgentRe
     if (input.historicalData) {
       historicalContext = `\nHISTORICAL DATA FOR THIS CREW MEMBER:\n`;
       historicalContext += `- Similar claims filed: ${input.historicalData.similarClaims}\n`;
-      historicalContext += `- Historical approval rate: ${(input.historicalData.approvalRate * 100).toFixed(1)}%\n`;
-      historicalContext += `- Average claim amount: $${input.historicalData.averageAmount.toFixed(2)}\n`;
+      historicalContext += `- Historical approval rate: ${((input.historicalData.approvalRate ?? 0) * 100).toFixed(1)}%\n`;
+      historicalContext += `- Average claim amount: $${(input.historicalData.averageAmount ?? 0).toFixed(2)}\n`;
 
       if (input.historicalData.recentClaimsByUser && input.historicalData.recentClaimsByUser.length > 0) {
         historicalContext += `- Recent claims (last 7 days): ${input.historicalData.recentClaimsByUser.length}\n`;
         historicalContext += `  Types: ${input.historicalData.recentClaimsByUser.map(c => c.type).join(', ')}\n`;
-        historicalContext += `  Amounts: ${input.historicalData.recentClaimsByUser.map(c => `$${c.amount}`).join(', ')}\n`;
+        historicalContext += `  Amounts: ${input.historicalData.recentClaimsByUser.map(c => `$${c.amount ?? 0}`).join(', ')}\n`;
       }
     }
 
