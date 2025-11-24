@@ -1,7 +1,10 @@
 /**
  * WebSocket service for real-time crew operations updates
  * Provides live updates for flights, crew status, disruptions, and alerts
+ * Uses Socket.IO for WebSocket communication
  */
+
+import { io, Socket } from 'socket.io-client';
 
 export type WebSocketEventType =
   | 'flight-update'
@@ -69,13 +72,8 @@ export interface ReserveCallout {
 }
 
 class WebSocketService {
-  private ws: WebSocket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 2000;
+  private socket: Socket | null = null;
   private listeners: Map<WebSocketEventType, Set<(data: any) => void>> = new Map();
-  private isConnecting = false;
-  private heartbeatInterval: number | null = null;
 
   constructor() {
     // Initialize listener sets
@@ -91,72 +89,77 @@ class WebSocketService {
   }
 
   /**
-   * Connect to WebSocket server
+   * Connect to Socket.IO server
    */
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) {
-      console.log('WebSocket already connected or connecting');
+    if (this.socket?.connected) {
+      console.log('Socket.IO already connected');
       return;
     }
 
-    this.isConnecting = true;
-    // Use wss:// for HTTPS pages, ws:// for HTTP pages
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = import.meta.env.VITE_WS_URL ||
-      (import.meta.env.DEV ? 'ws://localhost:3001/ws' : `${protocol}//${window.location.host}/ws`);
+    // Determine the server URL
+    const serverUrl = import.meta.env.VITE_API_URL ||
+      (import.meta.env.DEV ? 'http://localhost:8080' : window.location.origin);
 
-    console.log(`Connecting to WebSocket: ${wsUrl}`);
+    console.log(`Connecting to Socket.IO server: ${serverUrl}`);
 
     try {
-      this.ws = new WebSocket(wsUrl);
+      this.socket = io(serverUrl, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
+        timeout: 20000
+      });
 
-      this.ws.onopen = () => {
-        console.log('✓ WebSocket connected');
-        this.isConnecting = false;
-        this.reconnectAttempts = 0;
-        this.startHeartbeat();
+      this.socket.on('connect', () => {
+        console.log('✓ Socket.IO connected:', this.socket?.id);
         this.notifyListeners('connection-status', { connected: true });
-      };
+      });
 
-      this.ws.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          message.timestamp = new Date(message.timestamp);
-          this.handleMessage(message);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        this.isConnecting = false;
-      };
-
-      this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        this.isConnecting = false;
-        this.stopHeartbeat();
+      this.socket.on('disconnect', (reason) => {
+        console.log('Socket.IO disconnected:', reason);
         this.notifyListeners('connection-status', { connected: false });
-        this.attemptReconnect();
-      };
+      });
+
+      this.socket.on('connect_error', (error) => {
+        console.error('Socket.IO connection error:', error.message);
+      });
+
+      // Subscribe to custom events
+      this.socket.on('flight-update', (data: FlightUpdate) => {
+        this.notifyListeners('flight-update', data);
+      });
+
+      this.socket.on('crew-status-update', (data: CrewStatusUpdate) => {
+        this.notifyListeners('crew-status-update', data);
+      });
+
+      this.socket.on('disruption-alert', (data: DisruptionAlert) => {
+        this.notifyListeners('disruption-alert', data);
+      });
+
+      this.socket.on('duty-time-warning', (data: DutyTimeWarning) => {
+        this.notifyListeners('duty-time-warning', data);
+      });
+
+      this.socket.on('reserve-callout', (data: ReserveCallout) => {
+        this.notifyListeners('reserve-callout', data);
+      });
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
-      this.isConnecting = false;
-      this.attemptReconnect();
+      console.error('Failed to create Socket.IO connection:', error);
     }
   }
 
   /**
-   * Disconnect from WebSocket server
+   * Disconnect from Socket.IO server
    */
   disconnect() {
-    this.stopHeartbeat();
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
     }
-    this.reconnectAttempts = 0;
   }
 
   /**
@@ -181,10 +184,10 @@ class WebSocketService {
    * Send message to server
    */
   send(type: string, data: any) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type, data }));
+    if (this.socket?.connected) {
+      this.socket.emit(type, data);
     } else {
-      console.warn('WebSocket not connected, cannot send message');
+      console.warn('Socket.IO not connected, cannot send message');
     }
   }
 
@@ -192,14 +195,10 @@ class WebSocketService {
    * Get connection status
    */
   isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    return this.socket?.connected || false;
   }
 
   // Private methods
-
-  private handleMessage(message: WebSocketMessage) {
-    this.notifyListeners(message.type, message.data);
-  }
 
   private notifyListeners(eventType: WebSocketEventType, data: any) {
     const listeners = this.listeners.get(eventType);
@@ -211,37 +210,6 @@ class WebSocketService {
           console.error(`Error in listener for ${eventType}:`, error);
         }
       });
-    }
-  }
-
-  private attemptReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('Max reconnect attempts reached');
-      return;
-    }
-
-    this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-
-    setTimeout(() => {
-      this.connect();
-    }, delay);
-  }
-
-  private startHeartbeat() {
-    this.stopHeartbeat();
-    this.heartbeatInterval = window.setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.send('ping', { timestamp: Date.now() });
-      }
-    }, 30000); // 30 seconds
-  }
-
-  private stopHeartbeat() {
-    if (this.heartbeatInterval !== null) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
     }
   }
 }
