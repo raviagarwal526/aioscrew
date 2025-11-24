@@ -11,6 +11,7 @@ import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import agentRoutes from './api/routes/agents.js';
 import adminRoutes from './api/routes/admin.js';
+import cbaRoutes from './api/cba-routes.js';
 
 // Load environment variables
 config();
@@ -68,6 +69,7 @@ app.use((req, res, next) => {
 // API Routes
 app.use('/api/agents', agentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/cba', cbaRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
