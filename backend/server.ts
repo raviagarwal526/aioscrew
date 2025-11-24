@@ -2,9 +2,12 @@
  * Express server for AI agent backend
  */
 
+import { config } from "dotenv";
+// Load environment variables
+config();
+
 import express from 'express';
 import cors from 'cors';
-import { config } from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
@@ -12,9 +15,6 @@ import { Server as SocketIOServer } from 'socket.io';
 import agentRoutes from './api/routes/agents.js';
 import adminRoutes from './api/routes/admin.js';
 import cbaRoutes from './api/cba-routes.js';
-
-// Load environment variables
-config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
