@@ -337,4 +337,36 @@ router.get('/health', (req, res) => {
   });
 });
 
+/**
+ * Seed Neo4j database with CBA contract data
+ * POST /api/cba/seed
+ * WARNING: This will clear existing data and repopulate the database
+ */
+router.post('/seed', async (req, res) => {
+  try {
+    // Import seed function dynamically
+    const { seed } = await import('../scripts/seed-neo4j.js');
+
+    // Run seed in background and return immediately
+    seed()
+      .then(() => {
+        console.log('✅ Neo4j seed completed successfully');
+      })
+      .catch((error) => {
+        console.error('❌ Neo4j seed failed:', error);
+      });
+
+    res.json({
+      success: true,
+      message: 'Neo4j seed process started. Check server logs for progress.',
+    });
+  } catch (error) {
+    console.error('Error starting seed process:', error);
+    res.status(500).json({
+      error: 'Failed to start seed process',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 export default router;
