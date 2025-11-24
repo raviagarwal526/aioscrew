@@ -3,10 +3,14 @@ import {
   Database, Users, Plane, DollarSign, AlertTriangle, Calendar,
   Globe, Settings, Play, CheckCircle, Loader, TrendingUp,
   Award, Clock, Briefcase, Zap, X, ChevronDown, ChevronUp,
-  Brain, Sparkles, Trash2, ShieldAlert, RefreshCcw
+  Brain, Sparkles, Trash2, ShieldAlert, RefreshCcw, ArrowLeft
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { TestDataAgentResponse } from '../services/dataGenerationService';
+
+interface AutomationLabsPageProps {
+  onBack?: () => void;
+}
 
 interface DataGenerationConfig {
   // Crew configuration
@@ -331,7 +335,7 @@ const DEFAULT_CONFIG: DataGenerationConfig = {
   generateEdgeCases: false
 };
 
-export default function AutomationLabsPage() {
+export default function AutomationLabsPage({ onBack }: AutomationLabsPageProps = {}) {
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [config, setConfig] = useState<DataGenerationConfig>(DEFAULT_CONFIG);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -506,6 +510,17 @@ export default function AutomationLabsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white py-8">
       <div className="container mx-auto px-4 max-w-7xl">
+        {/* Back button */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Landing Page
+          </button>
+        )}
+
         <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
           {/* Header */}
           <div className="flex items-start justify-between">

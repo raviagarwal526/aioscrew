@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Plane, Calendar, Target, DollarSign, BarChart3, Scale, Building2, Cpu } from 'lucide-react';
 import { UserRole } from '../types';
+import AutomationLabsPage from './AutomationLabsPage';
 
 interface LandingPageProps {
   onSelectRole: (role: UserRole) => void;
@@ -100,6 +102,13 @@ const personas = [
 ] as const;
 
 export default function LandingPage({ onSelectRole }: LandingPageProps) {
+  const [showAutomationLab, setShowAutomationLab] = useState(false);
+
+  // If showing automation lab, render it full screen
+  if (showAutomationLab) {
+    return <AutomationLabsPage onBack={() => setShowAutomationLab(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
       <div className="container mx-auto px-4 py-12">
@@ -154,7 +163,10 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
             })}
 
             {/* Automation Labs Card */}
-            <div className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 text-left overflow-hidden backdrop-blur">
+            <button
+              onClick={() => setShowAutomationLab(true)}
+              className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 text-left overflow-hidden backdrop-blur"
+            >
               <div className="relative bg-gradient-to-br from-slate-900 via-cyan-900 to-blue-900 p-6">
                 <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.3),_transparent_45%)]" />
                 <Cpu className="relative w-12 h-12 text-white mb-3" />
@@ -177,10 +189,10 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
                   </li>
                 </ul>
                 <div className="w-full bg-gradient-to-r from-cyan-500/80 to-blue-500/80 border border-white/10 text-white/90 py-3 rounded-lg hover:opacity-90 transition-opacity font-semibold text-center">
-                  Developer Tools
+                  Open Automation Lab
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
           <div className="mt-12 text-center">
