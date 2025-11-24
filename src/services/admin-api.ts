@@ -236,3 +236,149 @@ export async function getAuditLog(filters: {
   if (!response.ok) throw new Error('Failed to fetch audit log');
   return response.json();
 }
+
+// ============================================================================
+// EXCESS PAYMENT ENDPOINTS
+// ============================================================================
+
+export interface ExcessPaymentFinding {
+  finding_id: number;
+  claim_id: string;
+  payment_id: number | null;
+  finding_type: 'duplicate' | 'overpayment' | 'contract_violation' | 'ineligible' | 'anomaly' | 'calculation_error';
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  excess_amount: number;
+  expected_amount: number;
+  paid_amount: number;
+  evidence: string[];
+  contract_references: string[] | null;
+  suggested_action: string;
+  agent_confidence: number | null;
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  resolution_notes: string | null;
+  created_at: string;
+  claim_type: string | null;
+  claim_amount: number | null;
+  crew_name: string | null;
+  batch_id: string | null;
+  batch_date: string | null;
+}
+
+export interface ExcessPaymentMetrics {
+  total_pending: number;
+  total_excess_amount: number;
+  by_severity: Array<{
+    severity: string;
+    count: number;
+    total_excess: number;
+  }>;
+  by_type: Array<{
+    finding_type: string;
+    count: number;
+    total_excess: number;
+  }>;
+  resolved_count: number;
+  total_recovered: number;
+}
+
+/**
+ * Scan for excess payments
+ */
+export async function scanExcessPayments(params: {
+  claim_id?: string;
+  payment_id?: string;
+  batch_id?: string;
+}): Promise<any> {
+  const response = await fetch(`${API_URL}/api/admin/excess-payments/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to scan for excess payments');
+  }
+  return response.json();
+}
+
+/**
+ * List excess payment findings
+ */
+export async function listExcessPaymentFindings(filters: {
+  status?: string;
+  severity?: string;
+  finding_type?: string;
+  claim_id?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ExcessPaymentFinding[]> {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined) params.append(key, String(value));
+  });
+
+  const response = await fetch(`${API_URL}/api/admin/excess-payments/findings?${params}`);
+  if (!response.ok) throw new Error('Failed to fetch excess payment findings');
+  return response.json();
+}
+
+/**
+ * Get excess payment metrics
+ */
+export async function getExcessPaymentMetrics(startDate?: string, endDate?: string): Promise<ExcessPaymentMetrics> {
+  const params = new URLSearchParams();
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+
+  const response = await fetch(`${API_URL}/api/admin/excess-payments/metrics?${params}`);
+  if (!response.ok) throw new Error('Failed to fetch excess payment metrics');
+  return response.json();
+}
+
+/**
+ * Update excess payment finding status
+ */
+export async function updateExcessPaymentFinding(
+  findingId: number,
+  action: 'resolved' | 'dismissed' | 'reviewed',
+  resolutionNotes?: string,
+  adminId?: string
+): Promise<void> {
+  const response = await fetch(`${API_URL}/api/admin/excess-payments/findings/${findingId}/action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action,
+      resolution_notes: resolutionNotes,
+      admin_id: adminId || 'ADMIN001'
+    })
+  });
+  if (!response.ok) throw new Error('Failed to update finding');
+}
+
+/**
+ * Create batch review for excess payments
+ */
+export async function createBatchReview(
+  findingIds: number[],
+  reviewNotes?: string,
+  adminId?: string
+): Promise<{ review_id: number; total_findings: number; total_excess_amount: number }> {
+  const response = await fetch(`${API_URL}/api/admin/excess-payments/batch-review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      finding_ids: findingIds,
+      review_notes: reviewNotes,
+      admin_id: adminId || 'ADMIN001'
+    })
+  });
+  if (!response.ok) throw new Error('Failed to create batch review');
+  return response.json();
+}

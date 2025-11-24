@@ -255,7 +255,61 @@ WHERE status IN ('approved', 'rejected', 'auto_approved', 'ai-validated')
 GROUP BY DATE(claim_date);
 
 -- ============================================================================
--- PART 5: INITIAL DATA
+-- PART 5: EXCESS PAYMENT TRACKING TABLES
+-- ============================================================================
+
+-- Excess payment findings
+CREATE TABLE IF NOT EXISTS excess_payment_findings (
+    finding_id SERIAL PRIMARY KEY,
+    claim_id VARCHAR(20) NOT NULL,
+    payment_id INTEGER REFERENCES payment_items(payment_id),
+    finding_type VARCHAR(50) NOT NULL, -- 'duplicate', 'overpayment', 'contract_violation', 'ineligible', 'anomaly', 'calculation_error'
+    severity VARCHAR(10) NOT NULL, -- 'high', 'medium', 'low'
+    title VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    excess_amount DECIMAL(10,2) NOT NULL,
+    expected_amount DECIMAL(10,2) NOT NULL,
+    paid_amount DECIMAL(10,2) NOT NULL,
+    evidence JSONB NOT NULL,
+    contract_references TEXT[],
+    suggested_action TEXT,
+    agent_confidence DECIMAL(3,2),
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'reviewed', 'resolved', 'dismissed'
+    reviewed_by VARCHAR(100),
+    reviewed_at TIMESTAMP,
+    resolution_notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_excess_findings_claim ON excess_payment_findings(claim_id);
+CREATE INDEX IF NOT EXISTS idx_excess_findings_payment ON excess_payment_findings(payment_id);
+CREATE INDEX IF NOT EXISTS idx_excess_findings_status ON excess_payment_findings(status);
+CREATE INDEX IF NOT EXISTS idx_excess_findings_severity ON excess_payment_findings(severity);
+CREATE INDEX IF NOT EXISTS idx_excess_findings_created ON excess_payment_findings(created_at DESC);
+
+-- Excess payment reviews (aggregated review sessions)
+CREATE TABLE IF NOT EXISTS excess_payment_reviews (
+    review_id SERIAL PRIMARY KEY,
+    review_date DATE NOT NULL,
+    reviewed_by VARCHAR(100) NOT NULL,
+    total_findings INTEGER NOT NULL,
+    total_excess_amount DECIMAL(12,2) NOT NULL,
+    findings_resolved INTEGER DEFAULT 0,
+    findings_dismissed INTEGER DEFAULT 0,
+    review_notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_excess_reviews_date ON excess_payment_reviews(review_date DESC);
+
+-- Link findings to reviews
+ALTER TABLE excess_payment_findings 
+ADD COLUMN IF NOT EXISTS review_id INTEGER REFERENCES excess_payment_reviews(review_id);
+
+CREATE INDEX IF NOT EXISTS idx_excess_findings_review ON excess_payment_findings(review_id);
+
+-- ============================================================================
+-- PART 6: INITIAL DATA
 -- ============================================================================
 
 -- Insert default admin user (password should be hashed in production)

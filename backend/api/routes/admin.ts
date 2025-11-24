@@ -634,6 +634,431 @@ router.get('/reports/financial-impact', async (req: Request, res: Response) => {
 });
 
 // ============================================================================
+// EXCESS PAYMENT ENDPOINTS
+// ============================================================================
+
+/**
+ * POST /api/admin/excess-payments/scan
+ * Scan a claim or payment batch for excess payments
+ */
+router.post('/excess-payments/scan', async (req: Request, res: Response) => {
+  try {
+    const { claim_id, payment_id, batch_id } = req.body;
+
+    if (!claim_id && !payment_id && !batch_id) {
+      return res.status(400).json({ error: 'claim_id, payment_id, or batch_id is required' });
+    }
+
+    // Import the agent dynamically
+    const { runExcessPaymentDetector } = await import('../../agents/core/excess-payment-detector.js');
+    const { getClaimById, getTripById, getCrewMemberById, getHistoricalData } = await import('../../services/database-service.js');
+
+    let findings: any[] = [];
+
+    if (claim_id) {
+      // Scan single claim
+      const claim = await getClaimById(claim_id);
+      if (!claim) {
+        return res.status(404).json({ error: 'Claim not found' });
+      }
+
+      const trip = claim.tripId ? await getTripById(claim.tripId) : undefined;
+      const crew = await getCrewMemberById(claim.crewMemberId);
+      const historical = await getHistoricalData(claim.crewMemberId, claim.type);
+
+      const result = await runExcessPaymentDetector({
+        claim,
+        trip,
+        crew,
+        historicalData: historical
+      });
+
+      // Save findings to database
+      if (result.data?.findings) {
+        for (const finding of result.data.findings) {
+          const findingResult = await sql`
+            INSERT INTO excess_payment_findings (
+              claim_id, finding_type, severity, title, description,
+              excess_amount, expected_amount, paid_amount, evidence,
+              contract_references, suggested_action, agent_confidence, status
+            )
+            VALUES (
+              ${claim_id},
+              ${finding.type},
+              ${finding.severity},
+              ${finding.title},
+              ${finding.description},
+              ${finding.excessAmount},
+              ${finding.expectedAmount},
+              ${finding.paidAmount},
+              ${JSON.stringify(finding.evidence)}::jsonb,
+              ${finding.contractReferences || []},
+              ${finding.suggestedAction},
+              ${result.confidence || 0.5},
+              'pending'
+            )
+            RETURNING *
+          `;
+          findings.push(findingResult[0]);
+        }
+      }
+
+      res.json({
+        claim_id,
+        agent_result: result,
+        findings: findings.map(f => ({
+          finding_id: f.finding_id,
+          finding_type: f.finding_type,
+          severity: f.severity,
+          title: f.title,
+          description: f.description,
+          excess_amount: Number(f.excess_amount),
+          expected_amount: Number(f.expected_amount),
+          paid_amount: Number(f.paid_amount),
+          evidence: f.evidence,
+          contract_references: f.contract_references,
+          suggested_action: f.suggested_action,
+          agent_confidence: f.agent_confidence ? Number(f.agent_confidence) : null,
+          status: f.status,
+          created_at: f.created_at
+        }))
+      });
+    } else if (batch_id) {
+      // Scan entire batch
+      const batchClaims = await sql`
+        SELECT DISTINCT pi.claim_id
+        FROM payment_items pi
+        WHERE pi.batch_id = ${batch_id}
+      `;
+
+      const allFindings: any[] = [];
+      for (const row of batchClaims) {
+        const claim = await getClaimById(row.claim_id);
+        if (!claim) continue;
+
+        const trip = claim.tripId ? await getTripById(claim.tripId) : undefined;
+        const crew = await getCrewMemberById(claim.crewMemberId);
+        const historical = await getHistoricalData(claim.crewMemberId, claim.type);
+
+        const result = await runExcessPaymentDetector({
+          claim,
+          trip,
+          crew,
+          historicalData: historical
+        });
+
+        if (result.data?.findings) {
+          for (const finding of result.data.findings) {
+            const paymentItem = await sql`
+              SELECT payment_id FROM payment_items
+              WHERE claim_id = ${claim.id} AND batch_id = ${batch_id}
+              LIMIT 1
+            `;
+
+            const findingResult = await sql`
+              INSERT INTO excess_payment_findings (
+                claim_id, payment_id, finding_type, severity, title, description,
+                excess_amount, expected_amount, paid_amount, evidence,
+                contract_references, suggested_action, agent_confidence, status
+              )
+              VALUES (
+                ${claim.id},
+                ${paymentItem.length > 0 ? paymentItem[0].payment_id : null},
+                ${finding.type},
+                ${finding.severity},
+                ${finding.title},
+                ${finding.description},
+                ${finding.excessAmount},
+                ${finding.expectedAmount},
+                ${finding.paidAmount},
+                ${JSON.stringify(finding.evidence)}::jsonb,
+                ${finding.contractReferences || []},
+                ${finding.suggestedAction},
+                ${result.confidence || 0.5},
+                'pending'
+              )
+              RETURNING *
+            `;
+            allFindings.push(findingResult[0]);
+          }
+        }
+      }
+
+      res.json({
+        batch_id,
+        total_claims_scanned: batchClaims.length,
+        total_findings: allFindings.length,
+        findings: allFindings.map(f => ({
+          finding_id: f.finding_id,
+          claim_id: f.claim_id,
+          finding_type: f.finding_type,
+          severity: f.severity,
+          title: f.title,
+          excess_amount: Number(f.excess_amount),
+          status: f.status
+        }))
+      });
+    }
+
+  } catch (error) {
+    console.error('Error scanning for excess payments:', error);
+    res.status(500).json({ error: 'Failed to scan for excess payments', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+/**
+ * GET /api/admin/excess-payments/findings
+ * List excess payment findings with filters
+ */
+router.get('/excess-payments/findings', async (req: Request, res: Response) => {
+  try {
+    const {
+      status,
+      severity,
+      finding_type,
+      claim_id,
+      start_date,
+      end_date,
+      limit = '50',
+      offset = '0'
+    } = req.query;
+
+    const limitNum = parseInt(limit as string, 10);
+    const offsetNum = parseInt(offset as string, 10);
+
+    // Build query conditionally
+    let query = sql`
+      SELECT 
+        epf.*,
+        pc.claim_type,
+        pc.amount as claim_amount,
+        cm.name as crew_name,
+        pi.batch_id,
+        pb.batch_date
+      FROM excess_payment_findings epf
+      LEFT JOIN pay_claims pc ON epf.claim_id = pc.id
+      LEFT JOIN crew_members cm ON pc.crew_id = cm.id
+      LEFT JOIN payment_items pi ON epf.payment_id = pi.payment_id
+      LEFT JOIN payment_batches pb ON pi.batch_id = pb.batch_id
+      WHERE 1=1
+    `;
+
+    if (status) {
+      query = sql`${query} AND epf.status = ${status}`;
+    }
+    if (severity) {
+      query = sql`${query} AND epf.severity = ${severity}`;
+    }
+    if (finding_type) {
+      query = sql`${query} AND epf.finding_type = ${finding_type}`;
+    }
+    if (claim_id) {
+      query = sql`${query} AND epf.claim_id = ${claim_id}`;
+    }
+    if (start_date) {
+      query = sql`${query} AND epf.created_at >= ${start_date}`;
+    }
+    if (end_date) {
+      query = sql`${query} AND epf.created_at <= ${end_date}`;
+    }
+
+    query = sql`${query} ORDER BY epf.created_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`;
+
+    const findings = await query;
+
+    res.json(findings.map((f: any) => ({
+      finding_id: f.finding_id,
+      claim_id: f.claim_id,
+      payment_id: f.payment_id,
+      finding_type: f.finding_type,
+      severity: f.severity,
+      title: f.title,
+      description: f.description,
+      excess_amount: Number(f.excess_amount),
+      expected_amount: Number(f.expected_amount),
+      paid_amount: Number(f.paid_amount),
+      evidence: f.evidence,
+      contract_references: f.contract_references,
+      suggested_action: f.suggested_action,
+      agent_confidence: f.agent_confidence ? Number(f.agent_confidence) : null,
+      status: f.status,
+      reviewed_by: f.reviewed_by,
+      reviewed_at: f.reviewed_at,
+      resolution_notes: f.resolution_notes,
+      created_at: f.created_at,
+      claim_type: f.claim_type,
+      claim_amount: f.claim_amount ? Number(f.claim_amount) : null,
+      crew_name: f.crew_name,
+      batch_id: f.batch_id,
+      batch_date: f.batch_date
+    })));
+  } catch (error) {
+    console.error('Error fetching excess payment findings:', error);
+    res.status(500).json({ error: 'Failed to fetch findings' });
+  }
+});
+
+/**
+ * GET /api/admin/excess-payments/metrics
+ * Get summary metrics for excess payments
+ */
+router.get('/excess-payments/metrics', async (req: Request, res: Response) => {
+  try {
+    const { start_date, end_date } = req.query;
+
+    // Total pending findings
+    const pendingResult = await sql`
+      SELECT 
+        COUNT(*) as count,
+        COALESCE(SUM(excess_amount), 0) as total_excess
+      FROM excess_payment_findings
+      WHERE status = 'pending'
+      ${start_date && end_date ? sql`AND created_at >= ${start_date} AND created_at <= ${end_date}` : sql``}
+    `;
+
+    // Findings by severity
+    const severityResult = await sql`
+      SELECT 
+        severity,
+        COUNT(*) as count,
+        COALESCE(SUM(excess_amount), 0) as total_excess
+      FROM excess_payment_findings
+      WHERE status = 'pending'
+      ${start_date && end_date ? sql`AND created_at >= ${start_date} AND created_at <= ${end_date}` : sql``}
+      GROUP BY severity
+    `;
+
+    // Findings by type
+    const typeResult = await sql`
+      SELECT 
+        finding_type,
+        COUNT(*) as count,
+        COALESCE(SUM(excess_amount), 0) as total_excess
+      FROM excess_payment_findings
+      WHERE status = 'pending'
+      ${start_date && end_date ? sql`AND created_at >= ${start_date} AND created_at <= ${end_date}` : sql``}
+      GROUP BY finding_type
+    `;
+
+    // Total resolved this period
+    const resolvedResult = await sql`
+      SELECT 
+        COUNT(*) as count,
+        COALESCE(SUM(excess_amount), 0) as total_recovered
+      FROM excess_payment_findings
+      WHERE status = 'resolved'
+      ${start_date && end_date ? sql`AND reviewed_at >= ${start_date} AND reviewed_at <= ${end_date}` : sql``}
+    `;
+
+    res.json({
+      total_pending: Number(pendingResult[0]?.count || 0),
+      total_excess_amount: Number(pendingResult[0]?.total_excess || 0),
+      by_severity: severityResult.map((r: any) => ({
+        severity: r.severity,
+        count: Number(r.count),
+        total_excess: Number(r.total_excess)
+      })),
+      by_type: typeResult.map((r: any) => ({
+        finding_type: r.finding_type,
+        count: Number(r.count),
+        total_excess: Number(r.total_excess)
+      })),
+      resolved_count: Number(resolvedResult[0]?.count || 0),
+      total_recovered: Number(resolvedResult[0]?.total_recovered || 0)
+    });
+  } catch (error) {
+    console.error('Error fetching excess payment metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch metrics' });
+  }
+});
+
+/**
+ * POST /api/admin/excess-payments/findings/:findingId/action
+ * Update finding status (resolve, dismiss, etc.)
+ */
+router.post('/excess-payments/findings/:findingId/action', async (req: Request, res: Response) => {
+  try {
+    const { findingId } = req.params;
+    const { action, resolution_notes, admin_id = 'ADMIN001' } = req.body;
+
+    if (!action || !['resolved', 'dismissed', 'reviewed'].includes(action)) {
+      return res.status(400).json({ error: 'Valid action is required (resolved, dismissed, reviewed)' });
+    }
+
+    await sql`
+      UPDATE excess_payment_findings
+      SET 
+        status = ${action},
+        reviewed_by = ${admin_id},
+        reviewed_at = NOW(),
+        resolution_notes = ${resolution_notes || null}
+      WHERE finding_id = ${findingId}
+    `;
+
+    // Log to audit trail
+    await sql`
+      INSERT INTO audit_log (entity_type, entity_id, action, performed_by, changes)
+      VALUES ('excess_payment_finding', ${findingId}, ${action}, ${admin_id}, ${JSON.stringify({ resolution_notes })}::jsonb)
+    `;
+
+    res.json({ success: true, message: `Finding ${action} successfully` });
+  } catch (error) {
+    console.error('Error updating finding:', error);
+    res.status(500).json({ error: 'Failed to update finding' });
+  }
+});
+
+/**
+ * POST /api/admin/excess-payments/batch-review
+ * Create a batch review session for multiple findings
+ */
+router.post('/excess-payments/batch-review', async (req: Request, res: Response) => {
+  try {
+    const { finding_ids, review_notes, admin_id = 'ADMIN001' } = req.body;
+
+    if (!finding_ids || !Array.isArray(finding_ids) || finding_ids.length === 0) {
+      return res.status(400).json({ error: 'finding_ids array is required' });
+    }
+
+    // Get total excess amount
+    const findings = await sql`
+      SELECT SUM(excess_amount) as total_excess
+      FROM excess_payment_findings
+      WHERE finding_id = ANY(${finding_ids})
+    `;
+
+    const totalExcess = Number(findings[0]?.total_excess || 0);
+
+    // Create review session
+    const reviewResult = await sql`
+      INSERT INTO excess_payment_reviews (
+        review_date, reviewed_by, total_findings, total_excess_amount, review_notes
+      )
+      VALUES (CURRENT_DATE, ${admin_id}, ${finding_ids.length}, ${totalExcess}, ${review_notes || null})
+      RETURNING *
+    `;
+
+    const reviewId = reviewResult[0].review_id;
+
+    // Link findings to review
+    await sql`
+      UPDATE excess_payment_findings
+      SET review_id = ${reviewId}
+      WHERE finding_id = ANY(${finding_ids})
+    `;
+
+    res.json({
+      review_id: reviewId,
+      total_findings: finding_ids.length,
+      total_excess_amount: totalExcess
+    });
+  } catch (error) {
+    console.error('Error creating batch review:', error);
+    res.status(500).json({ error: 'Failed to create batch review' });
+  }
+});
+
+// ============================================================================
 // SETTINGS ENDPOINTS
 // ============================================================================
 

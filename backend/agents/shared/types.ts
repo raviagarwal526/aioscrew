@@ -10,7 +10,8 @@ export type AgentType =
   | 'premium-pay'
   | 'guarantee'
   | 'compliance'
-  | 'dispute-resolution';
+  | 'dispute-resolution'
+  | 'excess-payment-detector';
 
 export type AgentStatus = 'idle' | 'processing' | 'completed' | 'error' | 'flagged';
 
