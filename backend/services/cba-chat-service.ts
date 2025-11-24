@@ -61,6 +61,9 @@ When answering questions:
  */
 async function searchRelevantSections(question: string, limit: number = 5): Promise<ContractReference[]> {
   try {
+    // Ensure limit is an integer (Neo4j requires integer for LIMIT)
+    const limitInt = Math.floor(limit);
+    
     // Extract keywords from question
     const keywords = question
       .toLowerCase()
@@ -92,7 +95,7 @@ async function searchRelevantSections(question: string, limit: number = 5): Prom
           s.accuracy as accuracy
         ORDER BY s.relevance DESC, s.accuracy DESC
         LIMIT $limit
-      `, { keyword, limit });
+      `, { keyword, limit: limitInt });
 
       sections.push(...results.map((r) => ({
         section: r.reference,
@@ -105,7 +108,7 @@ async function searchRelevantSections(question: string, limit: number = 5): Prom
     // Deduplicate and sort by relevance
     const uniqueSections = Array.from(
       new Map(sections.map((s) => [s.section, s])).values()
-    ).slice(0, limit);
+    ).slice(0, limitInt);
 
     return uniqueSections;
   } catch (error) {

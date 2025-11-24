@@ -234,6 +234,9 @@ export async function searchContractSections(
   limit: number = 10
 ): Promise<ContractReference[]> {
   try {
+    // Ensure limit is an integer (Neo4j requires integer for LIMIT)
+    const limitInt = Math.floor(limit);
+    
     const query = `
       MATCH (section:ContractSection)
       WHERE 
@@ -254,7 +257,7 @@ export async function searchContractSections(
       title: string;
       text: string;
       relevance: number;
-    }>(query, { keyword, limit });
+    }>(query, { keyword, limit: limitInt });
 
     return results.map((r) => ({
       section: r.section,
