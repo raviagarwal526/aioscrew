@@ -1,95 +1,32 @@
 /**
  * CBA Dual-Perspective Chat Service
  * Provides RAG-based Q&A from both Claims Administrator and Union Representative perspectives
+ * Uses unified LLM client with Ollama fallback
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { callUnifiedLLM } from '../agents/shared/unified-llm-client.js';
 import { executeReadQuery } from './neo4j-service.js';
 import type { ContractReference } from '../agents/shared/types.js';
 
 /**
- * Check if Anthropic API key is configured
+ * Handle LLM errors gracefully
+ * Note: Unified LLM client handles Ollama fallback automatically
  */
-function isAnthropicApiKeyConfigured(): boolean {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  return !!apiKey && apiKey.trim().length > 0;
-}
-
-/**
- * Get Anthropic client instance (lazy initialization)
- */
-let anthropicClient: Anthropic | null = null;
-
-function getAnthropicClient(): Anthropic {
-  if (!anthropicClient) {
-    if (!isAnthropicApiKeyConfigured()) {
-      throw new Error(
-        'ANTHROPIC_API_KEY is not set. Please set it in your environment variables.\n' +
-        'Get your API key from: https://console.anthropic.com/'
-      );
-    }
-    anthropicClient = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return anthropicClient;
-}
-
-/**
- * Handle Anthropic API errors gracefully
- */
-function handleAnthropicError(error: any, context: string): never {
+function handleLLMError(error: any, context: string): never {
   const statusCode = error?.status || error?.statusCode;
   const errorMessage = error?.error?.message || error?.message || String(error);
   
-  // Check for missing API key
-  if (!isAnthropicApiKeyConfigured()) {
-    const configError = new Error(
-      `ANTHROPIC_API_KEY is not configured. Cannot ${context}.\n` +
-      `Please set ANTHROPIC_API_KEY in your environment variables.\n` +
-      `Get your API key from: https://console.anthropic.com/`
-    );
-    (configError as any).isConfigError = true;
-    (configError as any).statusCode = 503;
-    throw configError;
-  }
-
-  // Check for credit balance errors
-  if (
-    statusCode === 402 ||
-    statusCode === 400 ||
-    errorMessage.toLowerCase().includes('credit balance') ||
-    errorMessage.toLowerCase().includes('insufficient funds') ||
-    errorMessage.toLowerCase().includes('too low') ||
-    errorMessage.toLowerCase().includes('payment required')
-  ) {
-    const creditError = new Error(
-      `Anthropic API credit balance is insufficient. Cannot ${context}.\n` +
-      `Please add credits to your Anthropic account at https://console.anthropic.com/\n` +
+  // Check for "all providers failed" error (including Ollama fallback)
+  if (error?.allProvidersFailed) {
+    const allFailedError = new Error(
+      `All LLM providers failed. Cannot ${context}.\n` +
+      `Ollama fallback was attempted but is not available.\n` +
+      `Please set up Ollama locally (see OLLAMA_SETUP.md) or configure cloud API keys.\n` +
       `Original error: ${errorMessage}`
     );
-    (creditError as any).isCreditError = true;
-    (creditError as any).statusCode = 402;
-    throw creditError;
-  }
-
-  // Check for authentication errors
-  if (
-    statusCode === 401 ||
-    errorMessage.toLowerCase().includes('authentication') ||
-    errorMessage.toLowerCase().includes('api key') ||
-    errorMessage.toLowerCase().includes('invalid api key') ||
-    errorMessage.toLowerCase().includes('unauthorized')
-  ) {
-    const authError = new Error(
-      `Anthropic API authentication failed. Cannot ${context}.\n` +
-      `Please check your ANTHROPIC_API_KEY environment variable.\n` +
-      `Get your API key from: https://console.anthropic.com/\n` +
-      `Original error: ${errorMessage}`
-    );
-    (authError as any).isAuthError = true;
-    (authError as any).statusCode = 401;
-    throw authError;
+    (allFailedError as any).allProvidersFailed = true;
+    (allFailedError as any).statusCode = 503;
+    throw allFailedError;
   }
 
   // Generic error
@@ -265,42 +202,20 @@ Format your response as JSON:
   "referencedSections": ["Section 12.4", "Section 11.5"]
 }`;
 
-  // Check API key before making request
-  if (!isAnthropicApiKeyConfigured()) {
-    return {
-      answer: "I'm unable to process your question because the Anthropic API key is not configured. Please contact your administrator to set up the ANTHROPIC_API_KEY environment variable.",
-      confidence: 0,
-      contractReferences: relevantSections,
-      perspective,
-      reasoning: 'Anthropic API key not configured',
-      warnings: ['ANTHROPIC_API_KEY is missing. Get your API key from https://console.anthropic.com/'],
-    };
-  }
-
   try {
-    // Step 4: Get Claude's response
-    const anthropic = getAnthropicClient();
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4000,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userPrompt,
-        },
-      ],
+    // Step 4: Get LLM response (tries cloud providers first, falls back to Ollama)
+    const llmResponse = await callUnifiedLLM({
+      systemPrompt,
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 4000,
+      agentType: 'orchestrator' // Use orchestrator config which has cloud providers + Ollama fallback
     });
 
-    const content = message.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type from Claude');
-    }
-
     // Extract JSON from response
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = llmResponse.content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('No JSON found in Claude response');
+      throw new Error('No JSON found in LLM response');
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
@@ -315,15 +230,15 @@ Format your response as JSON:
       warnings: parsed.warnings || [],
     };
 
-    console.log(`✅ Generated ${perspective} response with confidence ${response.confidence}`);
+    console.log(`✅ Generated ${perspective} response with confidence ${response.confidence} using ${llmResponse.provider}/${llmResponse.model}`);
 
     return response;
   } catch (error) {
     console.error('Error generating answer:', error);
     
-    // Handle Anthropic API errors gracefully
+    // Handle LLM errors gracefully
     try {
-      handleAnthropicError(error, 'generate answer');
+      handleLLMError(error, 'generate answer');
     } catch (handledError: any) {
       // Return a user-friendly error response instead of throwing
       return {
@@ -333,9 +248,7 @@ Format your response as JSON:
         perspective,
         reasoning: 'Error occurred during AI processing',
         warnings: [
-          handledError.isConfigError && 'ANTHROPIC_API_KEY is not configured',
-          handledError.isCreditError && 'Anthropic account has insufficient credits',
-          handledError.isAuthError && 'Anthropic API authentication failed',
+          handledError.allProvidersFailed && 'All LLM providers failed. Set up Ollama locally (see OLLAMA_SETUP.md) or configure cloud API keys.',
         ].filter(Boolean) as string[],
       };
     }
@@ -407,31 +320,17 @@ Return JSON:
   "severity": "minor" | "moderate" | "major"
 }`;
 
-  // Check API key before making request
-  if (!isAnthropicApiKeyConfigured()) {
-    console.warn('Anthropic API key not configured, skipping disagreement analysis');
-    return { hasDisagreement: false };
-  }
-
   try {
-    const anthropic = getAnthropicClient();
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+    // Use unified LLM client with Ollama fallback
+    const llmResponse = await callUnifiedLLM({
+      systemPrompt: 'You are an expert at analyzing CBA contract interpretations and identifying disagreements between different perspectives.',
+      userPrompt: prompt,
+      temperature: 0.3,
+      maxTokens: 1000,
+      agentType: 'orchestrator' // Use orchestrator config which has cloud providers + Ollama fallback
     });
 
-    const content = message.content[0];
-    if (content.type !== 'text') {
-      return { hasDisagreement: false };
-    }
-
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = llmResponse.content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return { hasDisagreement: false };
     }
@@ -446,6 +345,7 @@ Return JSON:
     console.error('Error analyzing disagreement:', error);
     // Don't throw - just return no disagreement if analysis fails
     // This allows the system to continue functioning even if disagreement analysis fails
+    // Ollama fallback will be attempted automatically by unified LLM client
     return { hasDisagreement: false };
   }
 }

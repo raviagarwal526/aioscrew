@@ -10,7 +10,7 @@
  */
 
 export interface LLMProviderConfig {
-  provider: 'anthropic' | 'openai' | 'google' | 'xai' | 'native' | 'ollama';
+  provider: 'anthropic' | 'openai' | 'google' | 'xai' | 'native' | 'ollama' | 'online-ollama';
   model: string;
   apiKey?: string;
   reasoning: string;
@@ -22,32 +22,24 @@ export interface LLMProviderConfig {
 export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
   'flight-time-calculator': [
     {
-      provider: 'ollama',
-      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
-      reasoning: 'FREE local inference on your GPU - no API costs',
-      cost: '$0 (local GPU)',
-      avgLatency: '1-3 seconds (with GPU)',
-      priority: 0
-    },
-    {
       provider: 'anthropic',
       model: 'claude-sonnet-4-5-20250929',
       reasoning: 'Structured calculations, fast inference, cost-effective for flight time validation',
       cost: '$3 per 1M tokens (input), $15 per 1M tokens (output)',
       avgLatency: '3-5 seconds',
       priority: 1
+    },
+    {
+      provider: 'ollama',
+      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
+      reasoning: 'FREE local inference fallback - no API costs, works during testing',
+      cost: '$0 (local GPU)',
+      avgLatency: '1-3 seconds (with GPU)',
+      priority: 99
     }
   ],
 
   'premium-pay-calculator': [
-    {
-      provider: 'ollama',
-      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
-      reasoning: 'FREE local inference - try local first to save costs',
-      cost: '$0 (local GPU)',
-      avgLatency: '2-4 seconds (with GPU)',
-      priority: 0
-    },
     {
       provider: 'anthropic',
       model: 'claude-sonnet-4-5-20250929',
@@ -55,18 +47,18 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
       cost: '$3 per 1M tokens (input), $15 per 1M tokens (output)',
       avgLatency: '5-8 seconds',
       priority: 1
+    },
+    {
+      provider: 'ollama',
+      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
+      reasoning: 'FREE local inference fallback - no API costs, works during testing',
+      cost: '$0 (local GPU)',
+      avgLatency: '2-4 seconds (with GPU)',
+      priority: 99
     }
   ],
 
   'compliance-validator': [
-    {
-      provider: 'ollama',
-      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
-      reasoning: 'FREE local inference - for non-critical validation',
-      cost: '$0 (local GPU)',
-      avgLatency: '2-4 seconds (with GPU)',
-      priority: 0
-    },
     {
       provider: 'anthropic',
       model: 'claude-opus-4-20250514',
@@ -74,18 +66,18 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
       cost: '$15 per 1M tokens (input), $75 per 1M tokens (output)',
       avgLatency: '8-12 seconds',
       priority: 1
+    },
+    {
+      provider: 'ollama',
+      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
+      reasoning: 'FREE local inference fallback - no API costs, works during testing',
+      cost: '$0 (local GPU)',
+      avgLatency: '2-4 seconds (with GPU)',
+      priority: 99
     }
   ],
 
   'orchestrator': [
-    {
-      provider: 'ollama',
-      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
-      reasoning: 'FREE local inference for coordination tasks',
-      cost: '$0 (local GPU)',
-      avgLatency: '1-3 seconds (with GPU)',
-      priority: 0
-    },
     {
       provider: 'anthropic',
       model: 'claude-sonnet-4-5-20250929',
@@ -93,23 +85,23 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
       cost: '$3 per 1M tokens (input), $15 per 1M tokens (output)',
       avgLatency: '3-5 seconds',
       priority: 1
-    }
-  ],
-
-  // Test data generation - ALWAYS use local Ollama to save costs
-  'test-data-generator': [
+    },
     {
       provider: 'ollama',
       model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
-      reasoning: 'FREE local inference - PERFECT for generating test data without API costs',
+      reasoning: 'FREE local inference fallback - no API costs, works during testing',
       cost: '$0 (local GPU)',
-      avgLatency: '2-5 seconds (with GPU)',
-      priority: 0
-    },
+      avgLatency: '1-3 seconds (with GPU)',
+      priority: 99
+    }
+  ],
+
+  // Test data generation - Ollama as fallback to save costs
+  'test-data-generator': [
     {
       provider: 'anthropic',
       model: 'claude-sonnet-4-5-20250929',
-      reasoning: 'Paid cloud option when Ollama is not available or you need faster throughput',
+      reasoning: 'Paid cloud option when you need faster throughput',
       cost: '$3 per 1M tokens (input), $15 per 1M tokens (output)',
       avgLatency: '5-7 seconds',
       priority: 1
@@ -121,19 +113,19 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
       cost: '$15 per 1M tokens (input), $75 per 1M tokens (output)',
       avgLatency: '9-12 seconds',
       priority: 2
+    },
+    {
+      provider: 'ollama',
+      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
+      reasoning: 'FREE local inference fallback - PERFECT for generating test data without API costs',
+      cost: '$0 (local GPU)',
+      avgLatency: '2-5 seconds (with GPU)',
+      priority: 99
     }
   ],
 
   // Future agents that might use other providers
   'dispute-resolution': [
-    {
-      provider: 'ollama',
-      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
-      reasoning: 'FREE local inference for document analysis',
-      cost: '$0 (local GPU)',
-      avgLatency: '2-4 seconds (with GPU)',
-      priority: 0
-    },
     {
       provider: 'google',
       model: 'gemini-2.0-flash-exp',
@@ -141,18 +133,18 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
       cost: 'Free tier available, then $0.075 per 1M tokens',
       avgLatency: '2-4 seconds',
       priority: 1
+    },
+    {
+      provider: 'ollama',
+      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
+      reasoning: 'FREE local inference fallback - no API costs, works during testing',
+      cost: '$0 (local GPU)',
+      avgLatency: '2-4 seconds (with GPU)',
+      priority: 99
     }
   ],
 
   'schedule-optimizer': [
-    {
-      provider: 'ollama',
-      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
-      reasoning: 'FREE local inference for scheduling optimization',
-      cost: '$0 (local GPU)',
-      avgLatency: '2-4 seconds (with GPU)',
-      priority: 0
-    },
     {
       provider: 'xai',
       model: 'grok-beta',
@@ -160,6 +152,14 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
       cost: 'Beta pricing TBD',
       avgLatency: '3-6 seconds',
       priority: 1
+    },
+    {
+      provider: 'ollama',
+      model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
+      reasoning: 'FREE local inference fallback - no API costs, works during testing',
+      cost: '$0 (local GPU)',
+      avgLatency: '2-4 seconds (with GPU)',
+      priority: 99
     }
   ],
 
@@ -177,14 +177,31 @@ export const AGENT_LLM_MAPPING: Record<string, LLMProviderConfig[]> = {
 
 /**
  * Get LLM configuration for a specific agent
- * Returns array of configs sorted by priority (Ollama first if available)
+ * Returns array of configs sorted by priority (cloud providers first, Ollama as last fallback)
+ * Automatically adds Ollama as fallback if not present
  */
 export function getLLMConfigs(agentType: string): LLMProviderConfig[] {
-  const configs = AGENT_LLM_MAPPING[agentType];
+  let configs = AGENT_LLM_MAPPING[agentType];
 
   if (!configs) {
     // Default to orchestrator configs if agent not found
-    return AGENT_LLM_MAPPING['orchestrator'];
+    configs = AGENT_LLM_MAPPING['orchestrator'];
+  }
+
+  // Ensure Ollama is always present as the last fallback option
+  const hasOllama = configs.some(c => c.provider === 'ollama');
+  if (!hasOllama) {
+    configs = [
+      ...configs,
+      {
+        provider: 'ollama',
+        model: process.env.OLLAMA_MODEL || 'llama3.2:latest',
+        reasoning: 'FREE local inference fallback - no API costs, works during testing',
+        cost: '$0 (local GPU)',
+        avgLatency: '2-4 seconds (with GPU)',
+        priority: 99
+      }
+    ];
   }
 
   // Add API keys from environment and sort by priority
@@ -206,8 +223,12 @@ export function getLLMConfigs(agentType: string): LLMProviderConfig[] {
           configCopy.apiKey = process.env.XAI_API_KEY;
           break;
         case 'ollama':
-          // Ollama doesn't need an API key
+          // Ollama doesn't need an API key (local)
           configCopy.apiKey = undefined;
+          break;
+        case 'online-ollama':
+          // Online Ollama services may need API keys (e.g., Groq)
+          configCopy.apiKey = process.env.GROQ_API_KEY;
           break;
         default:
           configCopy.apiKey = undefined;
@@ -231,13 +252,13 @@ export function getLLMConfig(agentType: string): LLMProviderConfig {
  */
 export const TECHNOLOGY_SELECTION_RATIONALE = {
   'When to use Ollama (Local LLM)': [
-    '🎯 ALWAYS TRY FIRST - Free local inference',
+    '🎯 AUTOMATIC FALLBACK - Free local inference when cloud providers fail',
     'Test data generation (bulk operations)',
     'Development and testing environments',
     'Any task where you have GPU available',
     'Privacy-sensitive data processing',
     'Cost-conscious operations',
-    'Fallback automatically to cloud if quality insufficient'
+    'Always available as last resort - no API keys needed'
   ],
 
   'When to use GPT-4o-mini': [
@@ -292,17 +313,18 @@ export const TECHNOLOGY_SELECTION_RATIONALE = {
 export const COST_OPTIMIZATION = {
   principle: 'Use the cheapest technology that meets accuracy requirements',
   strategy: [
-    '0. 🚀 TRY OLLAMA FIRST - 100% FREE local GPU inference (unlimited usage)',
     '1. Try rules engine for deterministic logic (free, instant)',
     '2. Use GPT-4o-mini for structured tasks (20x cheaper than Opus)',
     '3. Use Claude Sonnet for balanced reasoning (5x cheaper than Opus)',
     '4. Reserve Opus only for critical legal/compliance analysis',
-    '5. Monitor costs and adjust routing logic'
+    '5. 🚀 FALLBACK TO LOCAL OLLAMA - 100% FREE local GPU inference (unlimited usage) - automatically used when cloud providers fail',
+    '6. 🌐 FALLBACK TO ONLINE OLLAMA (GROQ) - FREE online service when local Ollama unavailable - no setup needed!',
+    '7. Monitor costs and adjust routing logic'
   ],
-  estimatedSavings: 'Up to 100% cost reduction with Ollama, or 90% with smart cloud routing',
+  estimatedSavings: 'Up to 100% cost reduction with Ollama fallback (local or online), or 90% with smart cloud routing',
   costWarnings: {
-    testDataGeneration: '⚠️  CAUTION: Generating test data with cloud APIs can cost $10-100+ for large datasets. ALWAYS use Ollama for test data!',
-    bulkOperations: '⚠️  WARNING: Bulk operations (>10 requests) should use Ollama first to avoid unexpected bills',
+    testDataGeneration: '⚠️  CAUTION: Generating test data with cloud APIs can cost $10-100+ for large datasets. Ollama (local or online Groq) will automatically fallback if cloud providers fail.',
+    bulkOperations: '⚠️  WARNING: Bulk operations (>10 requests) will fallback to Ollama (local or online Groq) if cloud providers fail',
     opusUsage: '⚠️  EXPENSIVE: Claude Opus costs $15-75 per 1M tokens. Confirm before use.'
   }
 };

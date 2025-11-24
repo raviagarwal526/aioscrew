@@ -2,12 +2,13 @@
  * Unified LLM Client
  *
  * Intelligently routes LLM calls between providers:
- * 1. Tries Ollama first (free local GPU)
- * 2. Falls back to cloud providers (Claude, OpenAI, etc.)
+ * 1. Tries cloud providers first (Claude, OpenAI, etc.) for best quality
+ * 2. Falls back to Ollama (free local GPU) if cloud providers fail
  * 3. Warns about expensive operations
  */
 
 import { callOllama, isOllamaAvailable } from './ollama-client.js';
+import { callOnlineOllama, isOnlineOllamaAvailable } from './online-ollama-client.js';
 import { callClaude } from './claude-client.js';
 import { getLLMConfigs, LLMProviderConfig, COST_OPTIMIZATION } from '../config/llm-provider-config.js';
 
@@ -48,6 +49,21 @@ async function checkOllamaAvailable(): Promise<boolean> {
   ollamaAvailableCache = await isOllamaAvailable();
   ollamaCheckTimestamp = now;
   return ollamaAvailableCache;
+}
+
+// Cache online Ollama availability check
+let onlineOllamaAvailableCache: boolean | null = null;
+let onlineOllamaCheckTimestamp = 0;
+
+async function checkOnlineOllamaAvailable(): Promise<boolean> {
+  const now = Date.now();
+  if (onlineOllamaAvailableCache !== null && (now - onlineOllamaCheckTimestamp) < OLLAMA_CHECK_CACHE_MS) {
+    return onlineOllamaAvailableCache;
+  }
+
+  onlineOllamaAvailableCache = await isOnlineOllamaAvailable();
+  onlineOllamaCheckTimestamp = now;
+  return onlineOllamaAvailableCache;
 }
 
 /**
@@ -128,12 +144,13 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
     }
 
     try {
-      // Try Ollama first (priority 0)
+      // Try Ollama as fallback (priority 99 - tried last)
       if (config.provider === 'ollama' && !skipOllama) {
+        // First try local Ollama
         const ollamaAvailable = await checkOllamaAvailable();
 
         if (ollamaAvailable) {
-          console.log(`💰 Using FREE local Ollama: ${config.model}`);
+          console.log(`💰 Using FREE local Ollama fallback: ${config.model}`);
 
           const response = await callOllama({
             systemPrompt,
@@ -149,10 +166,40 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
             model: config.model,
             estimatedCost: '$0.00 (local)'
           };
-        } else {
-          console.log('ℹ️  Ollama not available, falling back to cloud provider...');
-          continue;
         }
+
+        // If local Ollama not available, try online Ollama services (Groq, etc.)
+        const onlineOllamaAvailable = await checkOnlineOllamaAvailable();
+        if (onlineOllamaAvailable) {
+          console.log(`🌐 Local Ollama not available, trying FREE online Ollama service (Groq)...`);
+
+          try {
+            const response = await callOnlineOllama({
+              systemPrompt,
+              userPrompt,
+              temperature,
+              maxTokens,
+              model: config.model,
+              provider: 'auto'
+            });
+
+            return {
+              content: response.content,
+              usage: response.usage,
+              stopReason: response.stopReason,
+              provider: response.provider,
+              model: response.model,
+              estimatedCost: '$0.00 (free tier)'
+            };
+          } catch (onlineError) {
+            console.warn('Online Ollama service failed:', onlineError);
+            // Continue to next provider or throw if this was the last one
+            continue;
+          }
+        }
+
+        console.log('ℹ️  Local and online Ollama not available, all providers exhausted');
+        continue;
       }
 
       // Try Anthropic/Claude
@@ -292,11 +339,14 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
     errorMessage += '\n\n💡 SUGGESTIONS:';
     errorMessage += '\n   1. Add credits to your Anthropic account at https://console.anthropic.com/';
     errorMessage += '\n   2. Set up Ollama locally for free local inference (see OLLAMA_SETUP.md)';
-    errorMessage += '\n   3. Check your ANTHROPIC_API_KEY environment variable';
+    errorMessage += '\n   3. Get a FREE Groq API key for online Ollama fallback: https://console.groq.com/';
+    errorMessage += '\n   4. Check your ANTHROPIC_API_KEY environment variable';
   } else {
     errorMessage += '\n\n💡 SUGGESTIONS:';
     errorMessage += '\n   1. Set up Ollama locally for free local inference (see OLLAMA_SETUP.md)';
-    errorMessage += '\n   2. Check your API keys and provider configurations';
+    errorMessage += '\n   2. Get a FREE Groq API key for online Ollama fallback: https://console.groq.com/';
+    errorMessage += '\n   3. Check your API keys and provider configurations';
+    errorMessage += '\n   4. Online Ollama (Groq) will automatically be used when local Ollama is not available';
   }
   
   const finalError = new Error(errorMessage);
