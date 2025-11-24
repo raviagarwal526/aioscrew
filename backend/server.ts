@@ -43,6 +43,8 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
+
+// JSON body parser - errors will be caught by error handler middleware
 app.use(express.json());
 
 // Request timeout (2 minutes for AI agent processing)
@@ -114,18 +116,35 @@ app.get('*', (req, res, next) => {
   });
 });
 
-// Error handling
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled error:', err);
-
+// Error handling middleware - must be after routes
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   // Prevent sending response if headers already sent
   if (res.headersSent) {
     return next(err);
   }
 
-  res.status(500).json({
+  // Handle JSON parsing errors
+  if (err.type === 'entity.parse.failed' || err instanceof SyntaxError) {
+    console.error('JSON parsing error:', err);
+    return res.status(400).json({
+      error: 'Invalid JSON in request body',
+      message: 'The request body contains invalid JSON. Please check your request format.',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+
+  // Handle other errors
+  console.error('Unhandled error:', err);
+  
+  const statusCode = err.statusCode || err.status || 500;
+  res.status(statusCode).json({
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message || 'Unknown error',
+    ...(process.env.NODE_ENV === 'development' && {
+      stack: err.stack
+    })
   });
 });
 

@@ -24,11 +24,20 @@ const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
  */
 router.post('/validate', async (req: Request, res: Response) => {
   try {
+    // Validate request body exists and is valid JSON
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        error: 'Invalid request body. Expected JSON object.',
+        details: 'Request body must be a valid JSON object'
+      });
+    }
+
     const { claimId } = req.body;
 
     if (!claimId) {
       return res.status(400).json({
-        error: 'Missing claimId in request body'
+        error: 'Missing claimId in request body',
+        details: 'The request body must include a "claimId" field'
       });
     }
 
@@ -74,11 +83,26 @@ router.post('/validate', async (req: Request, res: Response) => {
 
     // Return result
     res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Validation error:', error);
-    res.status(500).json({
-      error: 'Internal server error during claim validation',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    
+    // Check if this is a provider error
+    const isProviderError = error?.allProvidersFailed === true;
+    const statusCode = isProviderError ? 503 : 500; // Service Unavailable for provider errors
+    
+    res.status(statusCode).json({
+      error: isProviderError 
+        ? 'LLM providers unavailable' 
+        : 'Internal server error during claim validation',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      ...(isProviderError && {
+        attemptedProviders: error?.attemptedProviders,
+        suggestions: [
+          'Add credits to your Anthropic account at https://console.anthropic.com/',
+          'Set up Ollama locally for free local inference (see OLLAMA_SETUP.md)',
+          'Check your ANTHROPIC_API_KEY environment variable'
+        ]
+      })
     });
   }
 });
@@ -89,11 +113,20 @@ router.post('/validate', async (req: Request, res: Response) => {
  */
 router.post('/validate-claim', async (req: Request, res: Response) => {
   try {
+    // Validate request body exists and is valid JSON
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        error: 'Invalid request body. Expected JSON object.',
+        details: 'Request body must be a valid JSON object'
+      });
+    }
+
     const { claim, trip, crew } = req.body;
 
     if (!claim) {
       return res.status(400).json({
-        error: 'Missing claim data in request body'
+        error: 'Missing claim data in request body',
+        details: 'The request body must include a "claim" field'
       });
     }
 
@@ -119,11 +152,26 @@ router.post('/validate-claim', async (req: Request, res: Response) => {
 
     // Return result
     res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Validation error:', error);
-    res.status(500).json({
-      error: 'Internal server error during claim validation',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    
+    // Check if this is a provider error
+    const isProviderError = error?.allProvidersFailed === true;
+    const statusCode = isProviderError ? 503 : 500; // Service Unavailable for provider errors
+    
+    res.status(statusCode).json({
+      error: isProviderError 
+        ? 'LLM providers unavailable' 
+        : 'Internal server error during claim validation',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      ...(isProviderError && {
+        attemptedProviders: error?.attemptedProviders,
+        suggestions: [
+          'Add credits to your Anthropic account at https://console.anthropic.com/',
+          'Set up Ollama locally for free local inference (see OLLAMA_SETUP.md)',
+          'Check your ANTHROPIC_API_KEY environment variable'
+        ]
+      })
     });
   }
 });

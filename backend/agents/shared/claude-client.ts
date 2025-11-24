@@ -64,9 +64,33 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
       },
       stopReason: message.stop_reason || 'end_turn'
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Check for specific API errors
+    if (error?.status === 400 || error?.statusCode === 400) {
+      const errorMessage = error?.error?.message || error?.message || 'Unknown error';
+      
+      // Detect credit balance errors
+      if (errorMessage.includes('credit balance') || errorMessage.includes('too low')) {
+        const creditError = new Error(`Anthropic API credit balance is too low. Please add credits to your Anthropic account. Original error: ${errorMessage}`);
+        (creditError as any).isCreditError = true;
+        (creditError as any).statusCode = 400;
+        throw creditError;
+      }
+      
+      // Detect authentication errors
+      if (errorMessage.includes('authentication') || errorMessage.includes('API key')) {
+        const authError = new Error(`Anthropic API authentication failed. Please check your ANTHROPIC_API_KEY. Original error: ${errorMessage}`);
+        (authError as any).isAuthError = true;
+        (authError as any).statusCode = 401;
+        throw authError;
+      }
+    }
+    
     console.error('Claude API error:', error);
-    throw new Error(`Claude API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const apiError = new Error(`Claude API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    (apiError as any).originalError = error;
+    (apiError as any).statusCode = error?.status || error?.statusCode || 500;
+    throw apiError;
   }
 }
 

@@ -108,25 +108,49 @@ export async function orchestrateClaimValidation(
     console.log(`🎯 Confidence: ${(finalDecision.confidence * 100).toFixed(1)}%\n`);
 
     return finalDecision;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Orchestrator error:', error);
 
-    // Return error result
+    // Check if this is an "all providers failed" error
+    const isProviderError = error?.allProvidersFailed === true;
+    const attemptedProviders = error?.attemptedProviders || 'unknown';
+    
+    let recommendation = 'ERROR - Failed to process claim';
+    let errorDetails = [error instanceof Error ? error.message : 'Unknown error'];
+    
+    if (isProviderError) {
+      recommendation = 'ERROR - All LLM providers unavailable. Please check your API configuration or set up Ollama for local inference.';
+      errorDetails = [
+        'All LLM providers failed to respond',
+        `Attempted providers: ${attemptedProviders}`,
+        'This usually means:',
+        '  1. Anthropic API credits are exhausted or API key is invalid',
+        '  2. Ollama is not running locally',
+        '  3. Network connectivity issues',
+        '',
+        'To fix:',
+        '  - Add credits to Anthropic account OR',
+        '  - Install and run Ollama locally (see OLLAMA_SETUP.md)'
+      ];
+    }
+
+    // Return error result with more context
     return {
       claimId: input.claim.id,
       overallStatus: 'rejected',
       confidence: 0,
       processingTime: (Date.now() - startTime) / 1000,
-      recommendation: 'ERROR - Failed to process claim',
+      recommendation,
       agentResults: [{
         agentType: 'orchestrator',
         agentName: 'Orchestrator',
         status: 'error',
         duration: 0,
-        summary: 'Orchestration failed',
-        details: [error instanceof Error ? error.message : 'Unknown error'],
+        summary: 'Orchestration failed - LLM providers unavailable',
+        details: errorDetails,
         confidence: 0
-      }]
+      }],
+      issues: errorDetails
     };
   }
 }

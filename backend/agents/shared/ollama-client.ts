@@ -27,19 +27,50 @@ export async function isOllamaAvailable(): Promise<boolean> {
   const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
   try {
-    const response = await fetch(`${ollamaUrl}/api/tags`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(2000), // 2 second timeout
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+    
+    try {
+      const response = await fetch(`${ollamaUrl}/api/tags`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`Ollama health check failed: ${response.status} ${response.statusText}`);
+        }
+        return false;
+      }
+
+      const data = await response.json() as { models?: Array<{ name: string }> };
+      const hasModels = !!(data.models && Array.isArray(data.models) && data.models.length > 0);
+      
+      if (!hasModels && process.env.NODE_ENV === 'development') {
+        console.debug('Ollama is running but no models are available');
+      }
+      
+      return hasModels;
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Ollama health check timed out after 2 seconds');
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`Ollama health check error: ${fetchError.message}`);
+        }
+      }
       return false;
     }
-
-    const data = await response.json() as { models?: Array<{ name: string }> };
-    return !!(data.models && Array.isArray(data.models) && data.models.length > 0);
   } catch (error) {
     // Ollama not running or not accessible
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`Ollama check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     return false;
   }
 }
