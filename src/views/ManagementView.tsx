@@ -1,6 +1,5 @@
 import { TrendingDown, TrendingUp, Users, DollarSign, Activity, BarChart3 } from 'lucide-react';
 import ConversationalAI from '../components/ConversationalAI';
-import DataGenerationCard from '../components/DataGenerationCard';
 
 export default function ManagementView() {
   return (
@@ -277,17 +276,6 @@ export default function ManagementView() {
           <div className="font-semibold">Forecasting</div>
           <div className="text-xs text-gray-600">Predictive models</div>
         </button>
-      </div>
-
-      {/* Developer Tools Section */}
-      <div className="border-t-4 border-purple-200 pt-6">
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-4 mb-6">
-          <h3 className="text-xl font-bold mb-1">Developer & Testing Tools</h3>
-          <p className="text-sm text-purple-100">
-            Generate realistic test data for AI agent validation and system testing
-          </p>
-        </div>
-        <DataGenerationCard />
       </div>
     </div>
   );

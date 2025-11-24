@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { Plane, Calendar, Target, DollarSign, BarChart3, Scale, Building2, Cpu } from 'lucide-react';
 import { UserRole } from '../types';
-import AutomationLabsPage from './AutomationLabsPage';
 
 interface LandingPageProps {
   onSelectRole: (role: UserRole) => void;
@@ -102,8 +100,6 @@ const personas = [
 ] as const;
 
 export default function LandingPage({ onSelectRole }: LandingPageProps) {
-  const [activeTab, setActiveTab] = useState<'personas' | 'automation'>('personas');
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
       <div className="container mx-auto px-4 py-12">
@@ -124,36 +120,9 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex bg-slate-900/60 backdrop-blur border border-white/10 rounded-xl p-1">
-            <button
-              onClick={() => setActiveTab('personas')}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                activeTab === 'personas'
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              Personas
-            </button>
-            <button
-              onClick={() => setActiveTab('automation')}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                activeTab === 'automation'
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              Automation Lab
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'personas' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {personas.map((persona) => {
+        {/* Persona Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {personas.map((persona) => {
               const Icon = persona.icon;
               return (
                 <button
@@ -185,10 +154,7 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
             })}
 
             {/* Automation Labs Card */}
-            <button
-              onClick={() => setActiveTab('automation')}
-              className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 text-left overflow-hidden backdrop-blur"
-            >
+            <div className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 text-left overflow-hidden backdrop-blur">
               <div className="relative bg-gradient-to-br from-slate-900 via-cyan-900 to-blue-900 p-6">
                 <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.3),_transparent_45%)]" />
                 <Cpu className="relative w-12 h-12 text-white mb-3" />
@@ -211,16 +177,12 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
                   </li>
                 </ul>
                 <div className="w-full bg-gradient-to-r from-cyan-500/80 to-blue-500/80 border border-white/10 text-white/90 py-3 rounded-lg hover:opacity-90 transition-opacity font-semibold text-center">
-                  Open Automation Lab
+                  Developer Tools
                 </div>
               </div>
-            </button>
+            </div>
           </div>
-        )}
 
-        {activeTab === 'automation' && <AutomationLabsPage />}
-
-        {activeTab === 'personas' && (
           <div className="mt-12 text-center">
             <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm rounded-full border border-blue-400/50">
               <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
@@ -229,7 +191,6 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
               </span>
             </div>
           </div>
-        )}
 
         <div className="mt-12 text-center text-slate-400 text-sm">
           <p>© 2024 Airline Crew Operating System</p>
