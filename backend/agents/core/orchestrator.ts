@@ -3,7 +3,7 @@
  * Coordinates the execution of specialized agents
  */
 
-import type { AgentInput, AgentResult, ValidationResult } from '../shared/types.js';
+import type { AgentInput, AgentResult, ValidationResult, Issue } from '../shared/types.js';
 import { runFlightTimeCalculator } from './flight-time-calculator.js';
 import { runPremiumPayCalculator } from './premium-pay-calculator.js';
 import { runComplianceValidator } from './compliance-validator.js';
@@ -134,6 +134,14 @@ export async function orchestrateClaimValidation(
       ];
     }
 
+    // Convert error details to Issue objects
+    const issues: Issue[] = errorDetails.map((detail, index) => ({
+      severity: index === 0 ? 'high' : 'medium' as 'high' | 'medium',
+      title: index === 0 ? detail : 'Additional Information',
+      description: detail,
+      detectedBy: 'orchestrator'
+    }));
+
     // Return error result with more context
     return {
       claimId: input.claim.id,
@@ -150,7 +158,7 @@ export async function orchestrateClaimValidation(
         details: errorDetails,
         confidence: 0
       }],
-      issues: errorDetails
+      issues: issues.length > 0 ? issues : undefined
     };
   }
 }
