@@ -10,7 +10,7 @@
  */
 
 export interface LLMProviderConfig {
-  provider: 'anthropic' | 'openai' | 'google' | 'xai' | 'native' | 'ollama';
+  provider: 'anthropic' | 'openai' | 'google' | 'xai' | 'native' | 'ollama' | 'online-ollama';
   model: string;
   apiKey?: string;
   reasoning: string;
@@ -223,8 +223,12 @@ export function getLLMConfigs(agentType: string): LLMProviderConfig[] {
           configCopy.apiKey = process.env.XAI_API_KEY;
           break;
         case 'ollama':
-          // Ollama doesn't need an API key
+          // Ollama doesn't need an API key (local)
           configCopy.apiKey = undefined;
+          break;
+        case 'online-ollama':
+          // Online Ollama services may need API keys (e.g., Groq)
+          configCopy.apiKey = process.env.GROQ_API_KEY;
           break;
         default:
           configCopy.apiKey = undefined;
@@ -313,13 +317,14 @@ export const COST_OPTIMIZATION = {
     '2. Use GPT-4o-mini for structured tasks (20x cheaper than Opus)',
     '3. Use Claude Sonnet for balanced reasoning (5x cheaper than Opus)',
     '4. Reserve Opus only for critical legal/compliance analysis',
-    '5. 🚀 FALLBACK TO OLLAMA - 100% FREE local GPU inference (unlimited usage) - automatically used when cloud providers fail',
-    '6. Monitor costs and adjust routing logic'
+    '5. 🚀 FALLBACK TO LOCAL OLLAMA - 100% FREE local GPU inference (unlimited usage) - automatically used when cloud providers fail',
+    '6. 🌐 FALLBACK TO ONLINE OLLAMA (GROQ) - FREE online service when local Ollama unavailable - no setup needed!',
+    '7. Monitor costs and adjust routing logic'
   ],
-  estimatedSavings: 'Up to 100% cost reduction with Ollama fallback, or 90% with smart cloud routing',
+  estimatedSavings: 'Up to 100% cost reduction with Ollama fallback (local or online), or 90% with smart cloud routing',
   costWarnings: {
-    testDataGeneration: '⚠️  CAUTION: Generating test data with cloud APIs can cost $10-100+ for large datasets. Ollama will automatically fallback if cloud providers fail.',
-    bulkOperations: '⚠️  WARNING: Bulk operations (>10 requests) will fallback to Ollama if cloud providers fail',
+    testDataGeneration: '⚠️  CAUTION: Generating test data with cloud APIs can cost $10-100+ for large datasets. Ollama (local or online Groq) will automatically fallback if cloud providers fail.',
+    bulkOperations: '⚠️  WARNING: Bulk operations (>10 requests) will fallback to Ollama (local or online Groq) if cloud providers fail',
     opusUsage: '⚠️  EXPENSIVE: Claude Opus costs $15-75 per 1M tokens. Confirm before use.'
   }
 };

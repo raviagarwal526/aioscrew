@@ -9,6 +9,31 @@ Using Ollama for local LLM inference provides **significant cost savings**:
 - **Speed**: Low latency with GPU acceleration
 - **Perfect for**: Test data generation, development, and high-volume operations
 
+## 🌐 Online Ollama Alternative (Groq)
+
+**Don't have local Ollama set up?** No problem! The system automatically falls back to **Groq** (free online Ollama-compatible service) when local Ollama is not available.
+
+### Quick Setup (30 seconds):
+
+1. **Get a free Groq API key**: https://console.groq.com/
+2. **Set environment variable**:
+   ```bash
+   export GROQ_API_KEY=your_groq_api_key_here
+   ```
+3. **That's it!** The system will automatically use Groq when local Ollama isn't available.
+
+**Benefits of Groq**:
+- ✅ **FREE tier** with generous limits
+- ✅ **Very fast** (uses LPUs - Language Processing Units)
+- ✅ **No local setup** required
+- ✅ **Supports Llama models** (same models as Ollama)
+- ✅ **Automatic fallback** - works seamlessly when local Ollama isn't running
+
+The system tries providers in this order:
+1. Cloud providers (Claude, etc.) - best quality
+2. Local Ollama - free, private
+3. **Online Ollama (Groq)** - free, no setup needed ← **NEW!**
+
 ### Cost Comparison
 
 | Operation | Cloud API Cost | Ollama Cost |
@@ -90,13 +115,22 @@ cp .env.example .env
 Edit `.env` and ensure these variables are set:
 
 ```bash
-# Ollama Configuration
+# Ollama Configuration (Local)
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2:latest
+
+# Online Ollama Alternative (Groq) - FREE, no local setup needed!
+GROQ_API_KEY=gsk_xxx  # Get free key at https://console.groq.com/
+GROQ_MODEL=llama-3.2-90b-text-preview  # Optional: specify model
 
 # Keep your cloud API keys for fallback
 ANTHROPIC_API_KEY=sk-ant-xxx  # Fallback for critical operations
 ```
+
+**Note**: The system will automatically try:
+1. Cloud providers (Claude) - if API key configured
+2. Local Ollama - if running locally
+3. **Groq (online Ollama)** - if `GROQ_API_KEY` is set ← **FREE fallback!**
 
 ### 2. Verify Ollama is running
 
