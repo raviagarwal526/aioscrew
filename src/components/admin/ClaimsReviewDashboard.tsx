@@ -811,8 +811,11 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
             <p className="mt-4 text-lg font-medium">No claims found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="relative">
+            {/* Visual indicator for horizontal scroll - subtle gradient hint */}
+            <div className="absolute top-0 right-0 h-full w-12 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-10" />
+            <div className="overflow-x-auto claims-queue-scroll pb-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#6B7280 #E5E7EB' }}>
+              <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '1200px' }}>
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Claim ID</th>
@@ -898,6 +901,7 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
