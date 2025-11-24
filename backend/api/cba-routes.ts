@@ -131,11 +131,32 @@ router.post('/parse/:documentId', async (req, res) => {
       sections: parsed.sections,
       totalPages: parsed.totalPages,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing document:', error);
-    res.status(500).json({
-      error: 'Failed to parse document',
+    
+    // Handle specific Anthropic API errors
+    const statusCode = error?.statusCode || error?.status || 500;
+    const isConfigError = error?.isConfigError;
+    const isCreditError = error?.isCreditError;
+    const isAuthError = error?.isAuthError;
+    
+    res.status(statusCode).json({
+      error: isConfigError 
+        ? 'Anthropic API key not configured'
+        : isCreditError 
+        ? 'Insufficient Anthropic API credits'
+        : isAuthError
+        ? 'Anthropic API authentication failed'
+        : 'Failed to parse document',
       details: error instanceof Error ? error.message : 'Unknown error',
+      ...(isConfigError || isCreditError || isAuthError ? {
+        suggestions: [
+          isConfigError && 'Set ANTHROPIC_API_KEY in your environment variables',
+          isCreditError && 'Add credits to your Anthropic account at https://console.anthropic.com/',
+          isAuthError && 'Check your ANTHROPIC_API_KEY is valid',
+          'Get your API key from: https://console.anthropic.com/'
+        ].filter(Boolean)
+      } : {})
     });
   }
 });
@@ -211,11 +232,32 @@ router.post('/process/:documentId', async (req, res) => {
       sections: parsed.sections.length,
       totalPages: parsed.totalPages,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error processing document:', error);
-    res.status(500).json({
-      error: 'Failed to process document',
+    
+    // Handle specific Anthropic API errors
+    const statusCode = error?.statusCode || error?.status || 500;
+    const isConfigError = error?.isConfigError;
+    const isCreditError = error?.isCreditError;
+    const isAuthError = error?.isAuthError;
+    
+    res.status(statusCode).json({
+      error: isConfigError 
+        ? 'Anthropic API key not configured'
+        : isCreditError 
+        ? 'Insufficient Anthropic API credits'
+        : isAuthError
+        ? 'Anthropic API authentication failed'
+        : 'Failed to process document',
       details: error instanceof Error ? error.message : 'Unknown error',
+      ...(isConfigError || isCreditError || isAuthError ? {
+        suggestions: [
+          isConfigError && 'Set ANTHROPIC_API_KEY in your environment variables',
+          isCreditError && 'Add credits to your Anthropic account at https://console.anthropic.com/',
+          isAuthError && 'Check your ANTHROPIC_API_KEY is valid',
+          'Get your API key from: https://console.anthropic.com/'
+        ].filter(Boolean)
+      } : {})
     });
   }
 });
@@ -242,11 +284,32 @@ router.post('/ask', async (req, res) => {
       success: true,
       response,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error answering question:', error);
-    res.status(500).json({
-      error: 'Failed to answer question',
+    
+    // Note: askQuestion now returns a response even on error, so this catch is mainly for unexpected errors
+    const statusCode = error?.statusCode || error?.status || 500;
+    const isConfigError = error?.isConfigError;
+    const isCreditError = error?.isCreditError;
+    const isAuthError = error?.isAuthError;
+    
+    res.status(statusCode).json({
+      error: isConfigError 
+        ? 'Anthropic API key not configured'
+        : isCreditError 
+        ? 'Insufficient Anthropic API credits'
+        : isAuthError
+        ? 'Anthropic API authentication failed'
+        : 'Failed to answer question',
       details: error instanceof Error ? error.message : 'Unknown error',
+      ...(isConfigError || isCreditError || isAuthError ? {
+        suggestions: [
+          isConfigError && 'Set ANTHROPIC_API_KEY in your environment variables',
+          isCreditError && 'Add credits to your Anthropic account at https://console.anthropic.com/',
+          isAuthError && 'Check your ANTHROPIC_API_KEY is valid',
+          'Get your API key from: https://console.anthropic.com/'
+        ].filter(Boolean)
+      } : {})
     });
   }
 });

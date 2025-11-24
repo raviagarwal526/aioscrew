@@ -7,9 +7,99 @@ import Anthropic from '@anthropic-ai/sdk';
 import { executeReadQuery } from './neo4j-service.js';
 import type { ContractReference } from '../agents/shared/types.js';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+/**
+ * Check if Anthropic API key is configured
+ */
+function isAnthropicApiKeyConfigured(): boolean {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  return !!apiKey && apiKey.trim().length > 0;
+}
+
+/**
+ * Get Anthropic client instance (lazy initialization)
+ */
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  if (!anthropicClient) {
+    if (!isAnthropicApiKeyConfigured()) {
+      throw new Error(
+        'ANTHROPIC_API_KEY is not set. Please set it in your environment variables.\n' +
+        'Get your API key from: https://console.anthropic.com/'
+      );
+    }
+    anthropicClient = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
+  return anthropicClient;
+}
+
+/**
+ * Handle Anthropic API errors gracefully
+ */
+function handleAnthropicError(error: any, context: string): never {
+  const statusCode = error?.status || error?.statusCode;
+  const errorMessage = error?.error?.message || error?.message || String(error);
+  
+  // Check for missing API key
+  if (!isAnthropicApiKeyConfigured()) {
+    const configError = new Error(
+      `ANTHROPIC_API_KEY is not configured. Cannot ${context}.\n` +
+      `Please set ANTHROPIC_API_KEY in your environment variables.\n` +
+      `Get your API key from: https://console.anthropic.com/`
+    );
+    (configError as any).isConfigError = true;
+    (configError as any).statusCode = 503;
+    throw configError;
+  }
+
+  // Check for credit balance errors
+  if (
+    statusCode === 402 ||
+    statusCode === 400 ||
+    errorMessage.toLowerCase().includes('credit balance') ||
+    errorMessage.toLowerCase().includes('insufficient funds') ||
+    errorMessage.toLowerCase().includes('too low') ||
+    errorMessage.toLowerCase().includes('payment required')
+  ) {
+    const creditError = new Error(
+      `Anthropic API credit balance is insufficient. Cannot ${context}.\n` +
+      `Please add credits to your Anthropic account at https://console.anthropic.com/\n` +
+      `Original error: ${errorMessage}`
+    );
+    (creditError as any).isCreditError = true;
+    (creditError as any).statusCode = 402;
+    throw creditError;
+  }
+
+  // Check for authentication errors
+  if (
+    statusCode === 401 ||
+    errorMessage.toLowerCase().includes('authentication') ||
+    errorMessage.toLowerCase().includes('api key') ||
+    errorMessage.toLowerCase().includes('invalid api key') ||
+    errorMessage.toLowerCase().includes('unauthorized')
+  ) {
+    const authError = new Error(
+      `Anthropic API authentication failed. Cannot ${context}.\n` +
+      `Please check your ANTHROPIC_API_KEY environment variable.\n` +
+      `Get your API key from: https://console.anthropic.com/\n` +
+      `Original error: ${errorMessage}`
+    );
+    (authError as any).isAuthError = true;
+    (authError as any).statusCode = 401;
+    throw authError;
+  }
+
+  // Generic error
+  const apiError = new Error(
+    `Failed to ${context}: ${errorMessage}`
+  );
+  (apiError as any).originalError = error;
+  (apiError as any).statusCode = statusCode || 500;
+  throw apiError;
+}
 
 export type Perspective = 'admin' | 'union';
 
@@ -175,8 +265,21 @@ Format your response as JSON:
   "referencedSections": ["Section 12.4", "Section 11.5"]
 }`;
 
+  // Check API key before making request
+  if (!isAnthropicApiKeyConfigured()) {
+    return {
+      answer: "I'm unable to process your question because the Anthropic API key is not configured. Please contact your administrator to set up the ANTHROPIC_API_KEY environment variable.",
+      confidence: 0,
+      contractReferences: relevantSections,
+      perspective,
+      reasoning: 'Anthropic API key not configured',
+      warnings: ['ANTHROPIC_API_KEY is missing. Get your API key from https://console.anthropic.com/'],
+    };
+  }
+
   try {
     // Step 4: Get Claude's response
+    const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4000,
@@ -217,6 +320,27 @@ Format your response as JSON:
     return response;
   } catch (error) {
     console.error('Error generating answer:', error);
+    
+    // Handle Anthropic API errors gracefully
+    try {
+      handleAnthropicError(error, 'generate answer');
+    } catch (handledError: any) {
+      // Return a user-friendly error response instead of throwing
+      return {
+        answer: `I encountered an issue while processing your question. ${handledError.message}`,
+        confidence: 0,
+        contractReferences: relevantSections,
+        perspective,
+        reasoning: 'Error occurred during AI processing',
+        warnings: [
+          handledError.isConfigError && 'ANTHROPIC_API_KEY is not configured',
+          handledError.isCreditError && 'Anthropic account has insufficient credits',
+          handledError.isAuthError && 'Anthropic API authentication failed',
+        ].filter(Boolean) as string[],
+      };
+    }
+    
+    // Fallback error
     throw new Error('Failed to generate answer');
   }
 }
@@ -283,7 +407,14 @@ Return JSON:
   "severity": "minor" | "moderate" | "major"
 }`;
 
+  // Check API key before making request
+  if (!isAnthropicApiKeyConfigured()) {
+    console.warn('Anthropic API key not configured, skipping disagreement analysis');
+    return { hasDisagreement: false };
+  }
+
   try {
+    const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1000,
@@ -313,6 +444,8 @@ Return JSON:
     };
   } catch (error) {
     console.error('Error analyzing disagreement:', error);
+    // Don't throw - just return no disagreement if analysis fails
+    // This allows the system to continue functioning even if disagreement analysis fails
     return { hasDisagreement: false };
   }
 }
