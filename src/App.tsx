@@ -20,7 +20,16 @@ function App() {
 
     useEffect(() => {
       if (!dbInitialized || typeof window === 'undefined') return;
+      // Scroll to top immediately and after a short delay to catch any late-rendering components
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+      // Additional scroll after components have rendered
+      const timeoutId = setTimeout(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }, 100);
+      return () => clearTimeout(timeoutId);
     }, [dbInitialized, currentRole, activeView]);
 
   const handleSelectRole = (role: UserRole) => {

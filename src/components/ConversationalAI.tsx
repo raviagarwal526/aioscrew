@@ -15,11 +15,14 @@ export default function ConversationalAI({ role, context }: ConversationalAIProp
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll if there are messages to avoid scrolling on initial mount
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   const handleSendMessage = async (text: string) => {
