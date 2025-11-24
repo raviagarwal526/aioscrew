@@ -14,6 +14,7 @@ interface DashboardLayoutProps {
 const roleConfig = {
   'crew-member': { name: 'Crew Member', color: 'blue' },
   'scheduler': { name: 'Crew Scheduler', color: 'purple' },
+  'crew-scheduler': { name: 'Crew Scheduling System', color: 'indigo' },
   'controller': { name: 'Crew Controller', color: 'red' },
   'payroll': { name: 'Payroll Admin', color: 'green' },
   'management': { name: 'Operations Manager', color: 'amber' },
@@ -51,7 +52,7 @@ export default function DashboardLayout({ role, onLogout, children, sidebar, tit
             <div className="flex items-center space-x-4">
               <div className="hidden sm:block text-right">
                 <span className="text-sm font-medium">Captain Sarah Martinez</span>
-                <div className="text-xs text-white/80">{config.name}</div>
+                <div className="text-xs text-white/80">{config?.name || 'User'}</div>
               </div>
               <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-white font-bold text-sm">SM</span>
