@@ -2,8 +2,8 @@
  * Unified LLM Client
  *
  * Intelligently routes LLM calls between providers:
- * 1. Tries Ollama first (free local GPU)
- * 2. Falls back to cloud providers (Claude, OpenAI, etc.)
+ * 1. Tries cloud providers first (Claude, OpenAI, etc.) for best quality
+ * 2. Falls back to Ollama (free local GPU) if cloud providers fail
  * 3. Warns about expensive operations
  */
 
@@ -128,12 +128,12 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
     }
 
     try {
-      // Try Ollama first (priority 0)
+      // Try Ollama as fallback (priority 99 - tried last)
       if (config.provider === 'ollama' && !skipOllama) {
         const ollamaAvailable = await checkOllamaAvailable();
 
         if (ollamaAvailable) {
-          console.log(`💰 Using FREE local Ollama: ${config.model}`);
+          console.log(`💰 Using FREE local Ollama fallback: ${config.model}`);
 
           const response = await callOllama({
             systemPrompt,
@@ -150,7 +150,7 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
             estimatedCost: '$0.00 (local)'
           };
         } else {
-          console.log('ℹ️  Ollama not available, falling back to cloud provider...');
+          console.log('ℹ️  Ollama not available, all providers exhausted');
           continue;
         }
       }
@@ -291,12 +291,13 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
   if (hasCreditError) {
     errorMessage += '\n\n💡 SUGGESTIONS:';
     errorMessage += '\n   1. Add credits to your Anthropic account at https://console.anthropic.com/';
-    errorMessage += '\n   2. Set up Ollama locally for free local inference (see OLLAMA_SETUP.md)';
+    errorMessage += '\n   2. Set up Ollama locally for free local inference fallback (see OLLAMA_SETUP.md)';
     errorMessage += '\n   3. Check your ANTHROPIC_API_KEY environment variable';
   } else {
     errorMessage += '\n\n💡 SUGGESTIONS:';
-    errorMessage += '\n   1. Set up Ollama locally for free local inference (see OLLAMA_SETUP.md)';
+    errorMessage += '\n   1. Set up Ollama locally for free local inference fallback (see OLLAMA_SETUP.md)';
     errorMessage += '\n   2. Check your API keys and provider configurations';
+    errorMessage += '\n   3. Ollama will automatically be used as fallback when cloud providers fail';
   }
   
   const finalError = new Error(errorMessage);
