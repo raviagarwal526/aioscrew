@@ -14,7 +14,11 @@ import {
   AlertCircle,
   Loader,
   Brain,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  Plane,
+  DollarSign,
+  Shield
 } from 'lucide-react';
 import { useAdminAgentActivity } from '../../hooks/useAdminAgentActivity';
 import {
@@ -31,6 +35,27 @@ interface ClaimsReviewDashboardProps {
   onViewClaim?: (claimId: string) => void;
 }
 
+interface ProcessingStep {
+  id: string;
+  agent: string;
+  agentName: string;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  message: string;
+  duration?: number;
+  startTime?: number;
+  error?: string;
+}
+
+interface ProcessingProgress {
+  claimId: string;
+  claimNumber: string;
+  totalSteps: number;
+  completedSteps: number;
+  steps: ProcessingStep[];
+  overallStatus?: 'processing' | 'completed' | 'error';
+  result?: any;
+}
+
 export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
   const { activities, isConnected } = useAdminAgentActivity();
   const [metrics, setMetrics] = useState<ClaimsMetrics | null>(null);
@@ -39,6 +64,12 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
   const [selectedClaim, setSelectedClaim] = useState<ClaimDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingClaimId, setProcessingClaimId] = useState<string | null>(null);
+  const [processingProgress, setProcessingProgress] = useState<ProcessingProgress | null>(null);
+  const [batchProcessing, setBatchProcessing] = useState<{
+    total: number;
+    processed: number;
+    current: string | null;
+  } | null>(null);
   const [filters, setFilters] = useState({
     status: '',
     priority: '',
@@ -101,6 +132,69 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
   const processClaimWithAgents = async (claimId: string) => {
     try {
       setProcessingClaimId(claimId);
+      const claim = claims.find(c => c.claim_id === claimId);
+      
+      // Initialize processing progress
+      const progress: ProcessingProgress = {
+        claimId,
+        claimNumber: claim?.claim_id || claimId,
+        totalSteps: 4,
+        completedSteps: 0,
+        steps: [
+          {
+            id: 'init',
+            agent: 'orchestrator',
+            agentName: 'Orchestrator',
+            status: 'processing',
+            message: 'Initializing claim validation...'
+          },
+          {
+            id: 'flight-time',
+            agent: 'flight-time-calculator',
+            agentName: 'Flight Time Calculator',
+            status: 'pending',
+            message: 'Validating trip data and flight times'
+          },
+          {
+            id: 'premium-pay',
+            agent: 'premium-pay-calculator',
+            agentName: 'Premium Pay Calculator',
+            status: 'pending',
+            message: 'Verifying payment amounts against CBA rules'
+          },
+          {
+            id: 'compliance',
+            agent: 'compliance-validator',
+            agentName: 'Compliance Validator',
+            status: 'pending',
+            message: 'Checking for red flags and policy violations'
+          }
+        ],
+        overallStatus: 'processing'
+      };
+      setProcessingProgress(progress);
+
+      // Update step 1: Starting
+      setTimeout(() => {
+        setProcessingProgress(prev => prev ? {
+          ...prev,
+          steps: prev.steps.map(s => s.id === 'init' ? { ...s, status: 'completed', message: '✓ Claim validation initialized' } : s),
+          completedSteps: 1
+        } : null);
+      }, 300);
+
+      // Start agents
+      setTimeout(() => {
+        setProcessingProgress(prev => prev ? {
+          ...prev,
+          steps: prev.steps.map(s => 
+            s.id === 'flight-time' || s.id === 'premium-pay' || s.id === 'compliance'
+              ? { ...s, status: 'processing', startTime: Date.now() }
+              : s
+          )
+        } : null);
+      }, 500);
+
       console.log(`🤖 Processing claim ${claimId} with AI agents...`);
 
       const response = await fetch('/api/agents/validate', {
@@ -110,17 +204,71 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to process claim: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to process claim: ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
       console.log(`✅ Claim ${claimId} processed:`, result.overallStatus);
 
+      // Update all steps as completed
+      const now = Date.now();
+      setProcessingProgress(prev => prev ? {
+        ...prev,
+        completedSteps: prev.totalSteps,
+        overallStatus: 'completed',
+        result,
+        steps: prev.steps.map(s => {
+          if (s.status === 'processing') {
+            const duration = s.startTime ? now - s.startTime : 0;
+            return {
+              ...s,
+              status: 'completed',
+              duration,
+              message: `✓ ${s.message} (${duration}ms)`
+            };
+          }
+          return s;
+        })
+      } : null);
+
       // Reload data to show updated claim
       await loadData();
+
+      // Clear progress after 3 seconds
+      setTimeout(() => {
+        setProcessingProgress(null);
+      }, 3000);
     } catch (error) {
       console.error('Error processing claim:', error);
-      alert(`Failed to process claim: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Mark steps as error
+      setProcessingProgress(prev => prev ? {
+        ...prev,
+        overallStatus: 'error',
+        steps: prev.steps.map(s => 
+          s.status === 'processing' 
+            ? { ...s, status: 'error', error: error instanceof Error ? error.message : 'Unknown error' }
+            : s
+        )
+      } : null);
+
+      // Show detailed error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Processing error:', errorMessage);
+      
+      // Display error in UI (already shown in processingProgress)
+      // Also show alert for critical errors
+      if (errorMessage.includes('All LLM providers failed')) {
+        alert(`⚠️ LLM Configuration Issue\n\n${errorMessage}\n\nPlease check your LLM provider setup (Ollama or Anthropic API key).`);
+      } else {
+        alert(`Failed to process claim: ${errorMessage}`);
+      }
+      
+      // Clear error state after 8 seconds (longer for errors so user can read)
+      setTimeout(() => {
+        setProcessingProgress(null);
+      }, 8000);
     } finally {
       setProcessingClaimId(null);
     }
@@ -143,13 +291,32 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
 
     try {
       setIsProcessing(true);
+      setBatchProcessing({
+        total: pendingClaims.length,
+        processed: 0,
+        current: null
+      });
       console.log(`🤖 Processing ${pendingClaims.length} pending claims...`);
 
-      for (const claim of pendingClaims) {
+      for (let i = 0; i < pendingClaims.length; i++) {
+        const claim = pendingClaims[i];
+        setBatchProcessing(prev => prev ? {
+          ...prev,
+          current: claim.claim_id,
+          processed: i
+        } : null);
+
         await processClaimWithAgents(claim.claim_id);
+        
         // Small delay to avoid overwhelming the backend
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+
+      setBatchProcessing({
+        total: pendingClaims.length,
+        processed: pendingClaims.length,
+        current: null
+      });
 
       console.log('✅ All claims processed');
       alert('All pending claims have been processed!');
@@ -158,6 +325,7 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       alert('Error processing some claims. Check console for details.');
     } finally {
       setIsProcessing(false);
+      setTimeout(() => setBatchProcessing(null), 2000);
     }
   };
 
@@ -219,10 +387,144 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
     return <AlertCircle className="text-orange-600" size={16} />;
   };
 
+  const getStepIcon = (step: ProcessingStep) => {
+    if (step.status === 'completed') return <CheckCircle className="text-green-600" size={16} />;
+    if (step.status === 'processing') return <Loader className="animate-spin text-blue-600" size={16} />;
+    if (step.status === 'error') return <XCircle className="text-red-600" size={16} />;
+    return <Clock className="text-gray-400" size={16} />;
+  };
+
+  const getAgentIcon = (agentId: string) => {
+    switch (agentId) {
+      case 'flight-time-calculator': return <Plane className="text-blue-600" size={16} />;
+      case 'premium-pay-calculator': return <DollarSign className="text-green-600" size={16} />;
+      case 'compliance-validator': return <Shield className="text-purple-600" size={16} />;
+      case 'orchestrator': return <Zap className="text-yellow-600" size={16} />;
+      default: return <Brain className="text-gray-600" size={16} />;
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
+      {/* Detailed Processing Progress Panel */}
+      {(processingProgress || batchProcessing) && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-400 rounded-lg p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-purple-900 flex items-center space-x-2">
+              <Brain className="animate-pulse" size={24} />
+              <span>AI Agent Processing</span>
+            </h3>
+            {batchProcessing && (
+              <div className="text-sm font-medium text-purple-700">
+                Batch: {batchProcessing.processed} / {batchProcessing.total}
+              </div>
+            )}
+          </div>
+
+          {processingProgress && (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2 mb-4">
+                <span className="font-semibold text-gray-700">Claim:</span>
+                <span className="font-mono text-purple-700">{processingProgress.claimNumber}</span>
+                <div className="flex-1 bg-gray-200 rounded-full h-2 ml-4">
+                  <div 
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(processingProgress.completedSteps / processingProgress.totalSteps) * 100}%` }}
+                  />
+                </div>
+                <span className="text-sm text-gray-600">
+                  {processingProgress.completedSteps} / {processingProgress.totalSteps}
+                </span>
+              </div>
+
+              <div className="space-y-2 font-mono text-sm">
+                {processingProgress.steps.map((step, idx) => (
+                  <div 
+                    key={step.id}
+                    className={`flex items-start space-x-3 p-3 rounded-lg transition-all ${
+                      step.status === 'completed' 
+                        ? 'bg-green-50 border border-green-200' 
+                        : step.status === 'processing'
+                        ? 'bg-blue-50 border-2 border-blue-300'
+                        : step.status === 'error'
+                        ? 'bg-red-50 border border-red-200'
+                        : 'bg-gray-50 border border-gray-200'
+                    }`}
+                  >
+                    <div className="mt-0.5">
+                      {getStepIcon(step)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        {getAgentIcon(step.agent)}
+                        <span className={`font-semibold ${
+                          step.status === 'completed' ? 'line-through text-gray-500' :
+                          step.status === 'processing' ? 'text-blue-700' :
+                          step.status === 'error' ? 'text-red-700' :
+                          'text-gray-400'
+                        }`}>
+                          {step.agentName}
+                        </span>
+                        {step.duration && (
+                          <span className="text-xs text-gray-500">({step.duration}ms)</span>
+                        )}
+                      </div>
+                      <div className={`mt-1 ${
+                        step.status === 'completed' ? 'line-through text-gray-400' :
+                        step.status === 'processing' ? 'text-blue-600' :
+                        step.status === 'error' ? 'text-red-600' :
+                        'text-gray-500'
+                      }`}>
+                        {step.message}
+                      </div>
+                      {step.error && (
+                        <div className="mt-1 text-xs text-red-600 font-normal whitespace-pre-wrap">
+                          <div className="font-semibold mb-1">Error:</div>
+                          <div className="bg-red-50 p-2 rounded border border-red-200">
+                            {step.error.split('\n').map((line, idx) => (
+                              <div key={idx}>{line}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {processingProgress.overallStatus === 'completed' && processingProgress.result && (
+                <div className="mt-4 p-4 bg-green-100 border border-green-300 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <CheckCircle className="text-green-600" size={20} />
+                    <span className="font-bold text-green-800">Processing Complete</span>
+                  </div>
+                  <div className="text-sm text-green-700">
+                    <div>Status: <span className="font-semibold">{processingProgress.result.overallStatus?.toUpperCase()}</span></div>
+                    {processingProgress.result.confidence && (
+                      <div>Confidence: <span className="font-semibold">{(processingProgress.result.confidence * 100).toFixed(1)}%</span></div>
+                    )}
+                    {processingProgress.result.recommendation && (
+                      <div className="mt-1">Recommendation: {processingProgress.result.recommendation}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {processingProgress.overallStatus === 'error' && (
+                <div className="mt-4 p-4 bg-red-100 border border-red-300 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <XCircle className="text-red-600" size={20} />
+                    <span className="font-bold text-red-800">Processing Failed</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Real-time Agent Activity Feed */}
-      {activities.length > 0 && (
+      {activities.length > 0 && !processingProgress && (
         <div className="bg-blue-50 border-2 border-blue-600 rounded-lg p-4">
           <div className="flex items-start space-x-3">
             <div className="relative">
@@ -311,63 +613,67 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <div className="flex items-center space-x-4">
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="px-3 py-2 border rounded-lg"
-          >
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="auto_approved">Auto-Approved</option>
-            <option value="manual_review">Manual Review</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+      {/* Action Bar - Prominent and Always Visible */}
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-4 sticky top-0 z-10">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center space-x-4 flex-wrap">
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="px-3 py-2 bg-white border rounded-lg text-sm"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="auto_approved">Auto-Approved</option>
+              <option value="manual_review">Manual Review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
 
-          <select
-            value={filters.priority}
-            onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-            className="px-3 py-2 border rounded-lg"
-          >
-            <option value="">All Priorities</option>
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
+            <select
+              value={filters.priority}
+              onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+              className="px-3 py-2 bg-white border rounded-lg text-sm"
+            >
+              <option value="">All Priorities</option>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
 
-          <select
-            value={filters.claim_type}
-            onChange={(e) => setFilters({ ...filters, claim_type: e.target.value })}
-            className="px-3 py-2 border rounded-lg"
-          >
-            <option value="">All Types</option>
-            <option value="missing_flight">Missing Flight</option>
-            <option value="incorrect_block_time">Block Time</option>
-            <option value="premium_pay">Premium Pay</option>
-            <option value="per_diem">Per Diem</option>
-            <option value="guarantee">Guarantee</option>
-          </select>
+            <select
+              value={filters.claim_type}
+              onChange={(e) => setFilters({ ...filters, claim_type: e.target.value })}
+              className="px-3 py-2 bg-white border rounded-lg text-sm"
+            >
+              <option value="">All Types</option>
+              <option value="missing_flight">Missing Flight</option>
+              <option value="incorrect_block_time">Block Time</option>
+              <option value="premium_pay">Premium Pay</option>
+              <option value="per_diem">Per Diem</option>
+              <option value="guarantee">Guarantee</option>
+            </select>
+          </div>
 
-          <button
-            onClick={loadData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-          >
-            <RefreshCw size={16} />
-            <span>Refresh</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={loadData}
+              className="px-4 py-2 bg-white text-purple-700 rounded-lg hover:bg-purple-50 font-semibold flex items-center space-x-2 shadow-md transition-all"
+            >
+              <RefreshCw size={16} />
+              <span>Refresh</span>
+            </button>
 
-          <button
-            onClick={processAllPendingClaims}
-            disabled={isProcessing || claims.filter(c => c.status === 'pending' || c.status === 'needs-review' || c.status === 'manual_review').length === 0}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
-          >
-            <Brain size={16} className={isProcessing ? 'animate-pulse' : ''} />
-            <span>{isProcessing ? 'Processing...' : 'Process All with AI'}</span>
-          </button>
+            <button
+              onClick={processAllPendingClaims}
+              disabled={isProcessing || claims.filter(c => c.status === 'pending' || c.status === 'needs-review' || c.status === 'manual_review').length === 0}
+              className="px-6 py-2 bg-yellow-400 text-purple-900 rounded-lg hover:bg-yellow-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed font-bold flex items-center space-x-2 shadow-lg transition-all transform hover:scale-105"
+            >
+              <Brain size={18} className={isProcessing ? 'animate-pulse' : ''} />
+              <span>{isProcessing ? `Processing... (${batchProcessing?.processed || 0}/${batchProcessing?.total || 0})` : `🤖 Process All (${claims.filter(c => c.status === 'pending' || c.status === 'needs-review' || c.status === 'manual_review').length})`}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -430,40 +736,44 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(claim.submitted_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleViewDetails(claim.claim_id)}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 flex items-center space-x-1"
-                        >
-                          <Eye size={14} />
-                          <span>View</span>
-                        </button>
-                        {claim.status === 'pending' || claim.status === 'manual_review' || claim.status === 'needs-review' ? (
-                          <>
+                    <td className="px-6 py-4 text-sm">
+                      <div className="flex flex-col space-y-2 min-w-[200px]">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleViewDetails(claim.claim_id)}
+                            className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center space-x-1 font-medium text-xs"
+                          >
+                            <Eye size={14} />
+                            <span>View</span>
+                          </button>
+                          {claim.status === 'pending' || claim.status === 'manual_review' || claim.status === 'needs-review' ? (
                             <button
                               onClick={() => processClaimWithAgents(claim.claim_id)}
-                              disabled={processingClaimId === claim.claim_id}
-                              className="px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 disabled:bg-gray-200 disabled:text-gray-500 flex items-center space-x-1"
+                              disabled={processingClaimId === claim.claim_id || isProcessing}
+                              className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed flex items-center space-x-1 font-semibold text-xs shadow-md transition-all"
                             >
                               <Brain size={14} className={processingClaimId === claim.claim_id ? 'animate-pulse' : ''} />
-                              <span>{processingClaimId === claim.claim_id ? 'Processing...' : 'AI Process'}</span>
+                              <span>{processingClaimId === claim.claim_id ? 'Processing...' : '🤖 AI Process'}</span>
                             </button>
+                          ) : null}
+                        </div>
+                        {claim.status === 'pending' || claim.status === 'manual_review' || claim.status === 'needs-review' ? (
+                          <div className="flex space-x-2">
                             <button
                               onClick={() => handleApprove(claim.claim_id)}
-                              className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center space-x-1"
+                              className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center space-x-1 font-medium text-xs"
                             >
                               <CheckCircle size={14} />
                               <span>Approve</span>
                             </button>
                             <button
                               onClick={() => handleReject(claim.claim_id)}
-                              className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center space-x-1"
+                              className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center space-x-1 font-medium text-xs"
                             >
                               <XCircle size={14} />
                               <span>Reject</span>
                             </button>
-                          </>
+                          </div>
                         ) : null}
                       </div>
                     </td>
