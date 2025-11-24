@@ -3,7 +3,7 @@
  * Shows real-time agent activity, metrics, and claims table
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   FileText, 
   Users, 
@@ -18,7 +18,8 @@ import {
   Zap,
   Plane,
   DollarSign,
-  Shield
+  Shield,
+  X
 } from 'lucide-react';
 import { useAdminAgentActivity } from '../../hooks/useAdminAgentActivity';
 import {
@@ -77,6 +78,7 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
     limit: 50,
     offset: 0
   });
+  const cancelProcessingRef = useRef(false);
 
   // Load metrics and claims
   useEffect(() => {
@@ -130,6 +132,11 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
 
   // Process a single claim with AI agents
   const processClaimWithAgents = async (claimId: string) => {
+    // Check if cancellation was requested before starting
+    if (cancelProcessingRef.current) {
+      throw new Error('Processing cancelled');
+    }
+
     try {
       setProcessingClaimId(claimId);
       const claim = claims.find(c => c.claim_id === claimId);
@@ -174,26 +181,40 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       };
       setProcessingProgress(progress);
 
+      // Check cancellation before continuing
+      if (cancelProcessingRef.current) {
+        throw new Error('Processing cancelled');
+      }
+
       // Update step 1: Starting
       setTimeout(() => {
-        setProcessingProgress(prev => prev ? {
-          ...prev,
-          steps: prev.steps.map(s => s.id === 'init' ? { ...s, status: 'completed', message: '✓ Claim validation initialized' } : s),
-          completedSteps: 1
-        } : null);
+        if (!cancelProcessingRef.current) {
+          setProcessingProgress(prev => prev ? {
+            ...prev,
+            steps: prev.steps.map(s => s.id === 'init' ? { ...s, status: 'completed', message: '✓ Claim validation initialized' } : s),
+            completedSteps: 1
+          } : null);
+        }
       }, 300);
 
       // Start agents
       setTimeout(() => {
-        setProcessingProgress(prev => prev ? {
-          ...prev,
-          steps: prev.steps.map(s => 
-            s.id === 'flight-time' || s.id === 'premium-pay' || s.id === 'compliance'
-              ? { ...s, status: 'processing', startTime: Date.now() }
-              : s
-          )
-        } : null);
+        if (!cancelProcessingRef.current) {
+          setProcessingProgress(prev => prev ? {
+            ...prev,
+            steps: prev.steps.map(s => 
+              s.id === 'flight-time' || s.id === 'premium-pay' || s.id === 'compliance'
+                ? { ...s, status: 'processing', startTime: Date.now() }
+                : s
+            )
+          } : null);
+        }
       }, 500);
+
+      // Check cancellation before API call
+      if (cancelProcessingRef.current) {
+        throw new Error('Processing cancelled');
+      }
 
       console.log(`🤖 Processing claim ${claimId} with AI agents...`);
 
@@ -203,12 +224,23 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
         body: JSON.stringify({ claimId })
       });
 
+      // Check cancellation after API call starts
+      if (cancelProcessingRef.current) {
+        throw new Error('Processing cancelled');
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to process claim: ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
+      
+      // Check cancellation after getting result
+      if (cancelProcessingRef.current) {
+        throw new Error('Processing cancelled');
+      }
+
       console.log(`✅ Claim ${claimId} processed:`, result.overallStatus);
 
       // Update all steps as completed
@@ -233,13 +265,24 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       } : null);
 
       // Reload data to show updated claim
-      await loadData();
+      if (!cancelProcessingRef.current) {
+        await loadData();
+      }
 
       // Clear progress after 3 seconds
-      setTimeout(() => {
-        setProcessingProgress(null);
-      }, 3000);
+      if (!cancelProcessingRef.current) {
+        setTimeout(() => {
+          setProcessingProgress(null);
+        }, 3000);
+      }
     } catch (error) {
+      // Don't show error if cancellation was requested
+      if (cancelProcessingRef.current) {
+        setProcessingProgress(null);
+        setProcessingClaimId(null);
+        return;
+      }
+
       console.error('Error processing claim:', error);
       
       // Mark steps as error
@@ -261,7 +304,7 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       // Also show alert for critical errors
       if (errorMessage.includes('All LLM providers failed')) {
         alert(`⚠️ LLM Configuration Issue\n\n${errorMessage}\n\nPlease check your LLM provider setup (Ollama or Anthropic API key).`);
-      } else {
+      } else if (!errorMessage.includes('cancelled')) {
         alert(`Failed to process claim: ${errorMessage}`);
       }
       
@@ -272,6 +315,16 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
     } finally {
       setProcessingClaimId(null);
     }
+  };
+
+  // Cancel all processing
+  const cancelAllProcessing = () => {
+    cancelProcessingRef.current = true;
+    setIsProcessing(false);
+    setProcessingClaimId(null);
+    setProcessingProgress(null);
+    setBatchProcessing(null);
+    console.log('🛑 Processing cancelled by user');
   };
 
   // Process all pending claims with AI agents
@@ -289,6 +342,9 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       return;
     }
 
+    // Reset cancellation flag
+    cancelProcessingRef.current = false;
+
     try {
       setIsProcessing(true);
       setBatchProcessing({
@@ -299,6 +355,16 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       console.log(`🤖 Processing ${pendingClaims.length} pending claims...`);
 
       for (let i = 0; i < pendingClaims.length; i++) {
+        // Check if cancellation was requested
+        if (cancelProcessingRef.current) {
+          console.log(`🛑 Processing cancelled at claim ${i + 1} of ${pendingClaims.length}`);
+          setBatchProcessing(prev => prev ? {
+            ...prev,
+            current: null
+          } : null);
+          break;
+        }
+
         const claim = pendingClaims[i];
         setBatchProcessing(prev => prev ? {
           ...prev,
@@ -306,25 +372,46 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
           processed: i
         } : null);
 
-        await processClaimWithAgents(claim.claim_id);
+        try {
+          await processClaimWithAgents(claim.claim_id);
+        } catch (error) {
+          // If cancelled during processing, break out
+          if (cancelProcessingRef.current) {
+            break;
+          }
+          console.error(`Error processing claim ${claim.claim_id}:`, error);
+        }
+        
+        // Check again before delay
+        if (cancelProcessingRef.current) {
+          break;
+        }
         
         // Small delay to avoid overwhelming the backend
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      setBatchProcessing({
-        total: pendingClaims.length,
-        processed: pendingClaims.length,
-        current: null
-      });
-
-      console.log('✅ All claims processed');
-      alert('All pending claims have been processed!');
+      if (!cancelProcessingRef.current) {
+        setBatchProcessing({
+          total: pendingClaims.length,
+          processed: pendingClaims.length,
+          current: null
+        });
+        console.log('✅ All claims processed');
+        alert('All pending claims have been processed!');
+      } else {
+        const processed = batchProcessing?.processed || 0;
+        console.log(`🛑 Processing cancelled. Processed ${processed} of ${pendingClaims.length} claims.`);
+        alert(`Processing cancelled. Processed ${processed} of ${pendingClaims.length} claims.`);
+      }
     } catch (error) {
       console.error('Error processing claims:', error);
-      alert('Error processing some claims. Check console for details.');
+      if (!cancelProcessingRef.current) {
+        alert('Error processing some claims. Check console for details.');
+      }
     } finally {
       setIsProcessing(false);
+      cancelProcessingRef.current = false;
       setTimeout(() => setBatchProcessing(null), 2000);
     }
   };
@@ -405,7 +492,15 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
+      {/* Header matching other screens */}
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6 shadow-lg">
+        <h2 className="text-3xl font-bold mb-2">Payroll Administration</h2>
+        <p className="text-purple-100">
+          AI-Powered Claims Processing & Review Dashboard
+        </p>
+      </div>
+
       {/* Detailed Processing Progress Panel */}
       {(processingProgress || batchProcessing) && (
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-400 rounded-lg p-6 shadow-lg">
@@ -414,11 +509,22 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
               <Brain className="animate-pulse" size={24} />
               <span>AI Agent Processing</span>
             </h3>
-            {batchProcessing && (
-              <div className="text-sm font-medium text-purple-700">
-                Batch: {batchProcessing.processed} / {batchProcessing.total}
-              </div>
-            )}
+            <div className="flex items-center space-x-4">
+              {batchProcessing && (
+                <div className="text-sm font-medium text-purple-700">
+                  Batch: {batchProcessing.processed} / {batchProcessing.total}
+                </div>
+              )}
+              {isProcessing && (
+                <button
+                  onClick={cancelAllProcessing}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold flex items-center space-x-2 shadow-md transition-all transform hover:scale-105"
+                >
+                  <X size={18} />
+                  <span>Cancel All Processing</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {processingProgress && (
@@ -614,13 +720,13 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
       )}
 
       {/* Action Bar - Prominent and Always Visible */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-4 sticky top-0 z-10">
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center space-x-4 flex-wrap">
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="px-3 py-2 bg-white border rounded-lg text-sm"
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -633,7 +739,7 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
             <select
               value={filters.priority}
               onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-              className="px-3 py-2 bg-white border rounded-lg text-sm"
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">All Priorities</option>
               <option value="low">Low</option>
@@ -645,7 +751,7 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
             <select
               value={filters.claim_type}
               onChange={(e) => setFilters({ ...filters, claim_type: e.target.value })}
-              className="px-3 py-2 bg-white border rounded-lg text-sm"
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">All Types</option>
               <option value="missing_flight">Missing Flight</option>
@@ -659,20 +765,31 @@ export default function ClaimsReviewDashboard({}: ClaimsReviewDashboardProps) {
           <div className="flex items-center space-x-3">
             <button
               onClick={loadData}
-              className="px-4 py-2 bg-white text-purple-700 rounded-lg hover:bg-purple-50 font-semibold flex items-center space-x-2 shadow-md transition-all"
+              disabled={isProcessing}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed font-semibold flex items-center space-x-2 shadow-sm transition-all"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               <span>Refresh</span>
             </button>
 
-            <button
-              onClick={processAllPendingClaims}
-              disabled={isProcessing || claims.filter(c => c.status === 'pending' || c.status === 'needs-review' || c.status === 'manual_review').length === 0}
-              className="px-6 py-2 bg-yellow-400 text-purple-900 rounded-lg hover:bg-yellow-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed font-bold flex items-center space-x-2 shadow-lg transition-all transform hover:scale-105"
-            >
-              <Brain size={18} className={isProcessing ? 'animate-pulse' : ''} />
-              <span>{isProcessing ? `Processing... (${batchProcessing?.processed || 0}/${batchProcessing?.total || 0})` : `🤖 Process All (${claims.filter(c => c.status === 'pending' || c.status === 'needs-review' || c.status === 'manual_review').length})`}</span>
-            </button>
+            {isProcessing ? (
+              <button
+                onClick={cancelAllProcessing}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold flex items-center space-x-2 shadow-lg transition-all transform hover:scale-105"
+              >
+                <X size={18} />
+                <span>Cancel Processing ({batchProcessing?.processed || 0}/{batchProcessing?.total || 0})</span>
+              </button>
+            ) : (
+              <button
+                onClick={processAllPendingClaims}
+                disabled={claims.filter(c => c.status === 'pending' || c.status === 'needs-review' || c.status === 'manual_review').length === 0}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed font-bold flex items-center space-x-2 shadow-lg transition-all transform hover:scale-105"
+              >
+                <Brain size={18} />
+                <span>🤖 Process All ({claims.filter(c => c.status === 'pending' || c.status === 'needs-review' || c.status === 'manual_review').length})</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
