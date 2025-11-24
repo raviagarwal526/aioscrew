@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import DatabaseInit from './components/DatabaseInit';
 import CrewMemberViewComplete from './views/CrewMemberViewComplete';
 import SchedulerView from './views/SchedulerView';
+import CrewSchedulingView from './views/CrewSchedulingView';
 import ControllerView from './views/ControllerView';
 import PayrollViewImproved from './views/PayrollViewImproved';
 import ManagementView from './views/ManagementView';
@@ -49,6 +50,10 @@ function App() {
     'scheduler': {
       component: <SchedulerView activeView={activeView} onViewChange={setActiveView} />,
       title: 'Crew Scheduler Workspace'
+    },
+    'crew-scheduler': {
+      component: <CrewSchedulingView activeView={activeView} onViewChange={setActiveView} />,
+      title: 'Crew Scheduling System'
     },
     'controller': {
       component: <ControllerView />,

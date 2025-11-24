@@ -1,6 +1,7 @@
 export type UserRole =
   | 'crew-member'
   | 'scheduler'
+  | 'crew-scheduler'
   | 'controller'
   | 'payroll'
   | 'management'

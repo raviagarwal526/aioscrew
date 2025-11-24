@@ -35,6 +35,19 @@ const personas = [
     accent: 'from-purple-500/80 to-pink-500/80'
   },
   {
+    role: 'crew-scheduler' as UserRole,
+    icon: Calendar,
+    title: 'Crew Scheduling System',
+    subtitle: 'Regulatory Compliance & Rostering',
+    capabilities: [
+      'Regulatory rule engine & compliance',
+      'Automated roster generation',
+      'Disruption management & reassignment'
+    ],
+    color: 'from-slate-900 via-indigo-900 to-blue-900',
+    accent: 'from-indigo-500/80 to-blue-500/80'
+  },
+  {
     role: 'controller' as UserRole,
     icon: Target,
     title: 'Crew Controller',

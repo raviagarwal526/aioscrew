@@ -1,4 +1,4 @@
-import { Home, Calendar, Users, DollarSign, BarChart3, FileText, Settings, Upload, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Home, Calendar, Users, DollarSign, BarChart3, FileText, Settings, Upload, MessageSquare, AlertTriangle, Shield } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface SidebarProps {
@@ -20,6 +20,15 @@ const sidebarMenus: Record<UserRole, Array<{ icon: any; label: string; view: str
     { icon: Calendar, label: 'Roster Builder', view: 'roster-builder' },
     { icon: Users, label: 'Crew Management', view: 'crew-management' },
     { icon: BarChart3, label: 'Analytics', view: 'analytics' },
+    { icon: Settings, label: 'Settings', view: 'settings' }
+  ],
+  'crew-scheduler': [
+    { icon: Home, label: 'Dashboard', view: 'dashboard' },
+    { icon: Calendar, label: 'Roster Builder', view: 'roster-builder' },
+    { icon: Shield, label: 'Rule Engine', view: 'rule-engine' },
+    { icon: AlertTriangle, label: 'Disruptions', view: 'disruptions' },
+    { icon: BarChart3, label: 'Compliance Reports', view: 'compliance-reports' },
+    { icon: Users, label: 'Crew Management', view: 'crew-management' },
     { icon: Settings, label: 'Settings', view: 'settings' }
   ],
   'controller': [
