@@ -76,7 +76,7 @@ async function callGroq(options: OnlineOllamaCallOptions): Promise<OnlineOllamaR
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as { error?: { message?: string } };
       const errorMessage = errorData.error?.message || `Groq API returned status ${response.status}`;
       
       if (response.status === 401) {
