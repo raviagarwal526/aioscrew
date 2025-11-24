@@ -183,17 +183,41 @@ export async function callUnifiedLLM(options: UnifiedLLMOptions): Promise<Unifie
             model: config.model,
             estimatedCost: cost
           };
-        } catch (error) {
+        } catch (error: any) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error(`❌ Claude API call failed: ${errorMessage}`);
           
-          // Check for common error types
-          if (errorMessage.includes('401') || errorMessage.includes('authentication')) {
+          // Check for specific error types using error flags
+          if (error?.isConfigError) {
+            console.error(`   ⚙️  Configuration error - ANTHROPIC_API_KEY is not set`);
+            console.error(`   💡 TIP: Set ANTHROPIC_API_KEY environment variable to use Claude`);
+          } else if (error?.isAuthError) {
             console.error(`   🔑 Authentication failed - check ANTHROPIC_API_KEY is valid`);
-          } else if (errorMessage.includes('429') || errorMessage.includes('rate limit')) {
-            console.error(`   ⏱️  Rate limit exceeded - wait before retrying`);
-          } else if (errorMessage.includes('insufficient') || errorMessage.includes('credit')) {
+          } else if (error?.isCreditError) {
             console.error(`   💳 Insufficient API credits - check your Anthropic account balance`);
+            console.error(`   💡 TIP: Add credits at https://console.anthropic.com/`);
+          } else if (error?.isRateLimitError) {
+            console.error(`   ⏱️  Rate limit exceeded - wait before retrying`);
+          } else {
+            // Fallback to message-based detection for backward compatibility
+            if (errorMessage.includes('401') || errorMessage.includes('authentication')) {
+              console.error(`   🔑 Authentication failed - check ANTHROPIC_API_KEY is valid`);
+            } else if (errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+              console.error(`   ⏱️  Rate limit exceeded - wait before retrying`);
+            } else if (errorMessage.includes('insufficient') || errorMessage.includes('credit')) {
+              console.error(`   💳 Insufficient API credits - check your Anthropic account balance`);
+            }
+          }
+          
+          // Mark this provider to skip if it's a config/auth/credit error
+          if (error?.isConfigError || error?.isAuthError || error?.isCreditError) {
+            skipProviders.add(`${config.provider}/${config.model}`);
+            // Also skip all other Anthropic models
+            for (const remainingConfig of configs) {
+              if (remainingConfig.provider === 'anthropic') {
+                skipProviders.add(`${remainingConfig.provider}/${remainingConfig.model}`);
+              }
+            }
           }
           
           // Continue to next provider

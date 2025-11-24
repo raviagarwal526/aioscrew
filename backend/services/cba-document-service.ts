@@ -9,9 +9,99 @@ import pdf from 'pdf-parse';
 import Anthropic from '@anthropic-ai/sdk';
 import { executeWriteQuery } from './neo4j-service.js';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+/**
+ * Check if Anthropic API key is configured
+ */
+function isAnthropicApiKeyConfigured(): boolean {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  return !!apiKey && apiKey.trim().length > 0;
+}
+
+/**
+ * Get Anthropic client instance (lazy initialization)
+ */
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  if (!anthropicClient) {
+    if (!isAnthropicApiKeyConfigured()) {
+      throw new Error(
+        'ANTHROPIC_API_KEY is not set. Please set it in your environment variables.\n' +
+        'Get your API key from: https://console.anthropic.com/'
+      );
+    }
+    anthropicClient = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
+  return anthropicClient;
+}
+
+/**
+ * Handle Anthropic API errors gracefully
+ */
+function handleAnthropicError(error: any, context: string): never {
+  const statusCode = error?.status || error?.statusCode;
+  const errorMessage = error?.error?.message || error?.message || String(error);
+  
+  // Check for missing API key
+  if (!isAnthropicApiKeyConfigured()) {
+    const configError = new Error(
+      `ANTHROPIC_API_KEY is not configured. Cannot ${context}.\n` +
+      `Please set ANTHROPIC_API_KEY in your environment variables.\n` +
+      `Get your API key from: https://console.anthropic.com/`
+    );
+    (configError as any).isConfigError = true;
+    (configError as any).statusCode = 503;
+    throw configError;
+  }
+
+  // Check for credit balance errors
+  if (
+    statusCode === 402 ||
+    statusCode === 400 ||
+    errorMessage.toLowerCase().includes('credit balance') ||
+    errorMessage.toLowerCase().includes('insufficient funds') ||
+    errorMessage.toLowerCase().includes('too low') ||
+    errorMessage.toLowerCase().includes('payment required')
+  ) {
+    const creditError = new Error(
+      `Anthropic API credit balance is insufficient. Cannot ${context}.\n` +
+      `Please add credits to your Anthropic account at https://console.anthropic.com/\n` +
+      `Original error: ${errorMessage}`
+    );
+    (creditError as any).isCreditError = true;
+    (creditError as any).statusCode = 402;
+    throw creditError;
+  }
+
+  // Check for authentication errors
+  if (
+    statusCode === 401 ||
+    errorMessage.toLowerCase().includes('authentication') ||
+    errorMessage.toLowerCase().includes('api key') ||
+    errorMessage.toLowerCase().includes('invalid api key') ||
+    errorMessage.toLowerCase().includes('unauthorized')
+  ) {
+    const authError = new Error(
+      `Anthropic API authentication failed. Cannot ${context}.\n` +
+      `Please check your ANTHROPIC_API_KEY environment variable.\n` +
+      `Get your API key from: https://console.anthropic.com/\n` +
+      `Original error: ${errorMessage}`
+    );
+    (authError as any).isAuthError = true;
+    (authError as any).statusCode = 401;
+    throw authError;
+  }
+
+  // Generic error
+  const apiError = new Error(
+    `Failed to ${context}: ${errorMessage}`
+  );
+  (apiError as any).originalError = error;
+  (apiError as any).statusCode = statusCode || 500;
+  throw apiError;
+}
 
 export interface ContractSection {
   reference: string;
@@ -54,6 +144,18 @@ export async function extractTextFromPDF(filePath: string): Promise<{ text: stri
 export async function parseCBADocument(text: string, filename: string): Promise<ParsedDocument> {
   console.log('📄 Parsing CBA document with Claude...');
 
+  // Check API key before making request
+  if (!isAnthropicApiKeyConfigured()) {
+    const error = new Error(
+      'ANTHROPIC_API_KEY is not configured. Cannot parse CBA document.\n' +
+      'Please set ANTHROPIC_API_KEY in your environment variables.\n' +
+      'Get your API key from: https://console.anthropic.com/'
+    );
+    (error as any).isConfigError = true;
+    (error as any).statusCode = 503;
+    throw error;
+  }
+
   const prompt = `You are a legal document parser specializing in Collective Bargaining Agreements (CBAs) for airlines.
 
 Parse the following CBA document and extract all sections in a structured format.
@@ -87,6 +189,7 @@ Return ONLY valid JSON in this format:
 }`;
 
   try {
+    const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 16000,
@@ -121,7 +224,8 @@ Return ONLY valid JSON in this format:
     };
   } catch (error) {
     console.error('Error parsing CBA document with Claude:', error);
-    throw new Error('Failed to parse CBA document');
+    handleAnthropicError(error, 'parse CBA document');
+    throw error; // This will never execute, but TypeScript needs it
   }
 }
 
@@ -198,6 +302,12 @@ export async function importSectionsToNeo4j(sections: ContractSection[]): Promis
 export async function detectRelationships(sections: ContractSection[]): Promise<void> {
   console.log('🔗 Detecting relationships between sections...');
 
+  // Check API key before making request
+  if (!isAnthropicApiKeyConfigured()) {
+    console.warn('⚠️  Anthropic API key not configured, skipping relationship detection');
+    return;
+  }
+
   const sectionRefs = sections.map(s => ({
     reference: s.reference,
     title: s.title,
@@ -228,6 +338,7 @@ Return JSON array of relationships:
 }`;
 
   try {
+    const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4000,
@@ -274,6 +385,13 @@ Return JSON array of relationships:
     console.log('✅ Relationship detection complete');
   } catch (error) {
     console.error('Error detecting relationships:', error);
+    // Don't throw - allow document processing to continue even if relationship detection fails
+    // This is a non-critical operation
+    try {
+      handleAnthropicError(error, 'detect relationships');
+    } catch (handledError) {
+      console.warn('⚠️  Relationship detection failed, but document processing will continue');
+    }
   }
 }
 

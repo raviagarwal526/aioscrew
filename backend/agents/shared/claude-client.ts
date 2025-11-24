@@ -4,9 +4,33 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+/**
+ * Check if Anthropic API key is configured
+ */
+export function isAnthropicApiKeyConfigured(): boolean {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  return !!apiKey && apiKey.trim().length > 0;
+}
+
+/**
+ * Get Anthropic client instance (lazy initialization)
+ */
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  if (!anthropicClient) {
+    if (!isAnthropicApiKeyConfigured()) {
+      throw new Error(
+        'ANTHROPIC_API_KEY is not set. Please set it in your environment variables.\n' +
+        'Get your API key from: https://console.anthropic.com/'
+      );
+    }
+    anthropicClient = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
+  return anthropicClient;
+}
 
 export interface ClaudeCallOptions {
   systemPrompt: string;
@@ -37,7 +61,19 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
     model = 'claude-sonnet-4-5-20250929'
   } = options;
 
+  // Check API key before making request
+  if (!isAnthropicApiKeyConfigured()) {
+    const error = new Error(
+      'ANTHROPIC_API_KEY is not configured. Please set it in your environment variables.\n' +
+      'Get your API key from: https://console.anthropic.com/'
+    );
+    (error as any).isConfigError = true;
+    (error as any).statusCode = 503;
+    throw error;
+  }
+
   try {
+    const anthropic = getAnthropicClient();
     const message = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,
@@ -65,31 +101,69 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
       stopReason: message.stop_reason || 'end_turn'
     };
   } catch (error: any) {
+    // Don't wrap config errors
+    if (error?.isConfigError) {
+      throw error;
+    }
+
     // Check for specific API errors
-    if (error?.status === 400 || error?.statusCode === 400) {
-      const errorMessage = error?.error?.message || error?.message || 'Unknown error';
-      
-      // Detect credit balance errors
-      if (errorMessage.includes('credit balance') || errorMessage.includes('too low')) {
-        const creditError = new Error(`Anthropic API credit balance is too low. Please add credits to your Anthropic account. Original error: ${errorMessage}`);
-        (creditError as any).isCreditError = true;
-        (creditError as any).statusCode = 400;
-        throw creditError;
-      }
-      
-      // Detect authentication errors
-      if (errorMessage.includes('authentication') || errorMessage.includes('API key')) {
-        const authError = new Error(`Anthropic API authentication failed. Please check your ANTHROPIC_API_KEY. Original error: ${errorMessage}`);
-        (authError as any).isAuthError = true;
-        (authError as any).statusCode = 401;
-        throw authError;
-      }
+    const statusCode = error?.status || error?.statusCode;
+    const errorMessage = error?.error?.message || error?.message || String(error);
+    
+    // Detect credit balance errors (400, 402, or specific error messages)
+    if (
+      statusCode === 402 ||
+      statusCode === 400 ||
+      errorMessage.toLowerCase().includes('credit balance') ||
+      errorMessage.toLowerCase().includes('insufficient funds') ||
+      errorMessage.toLowerCase().includes('too low') ||
+      errorMessage.toLowerCase().includes('payment required')
+    ) {
+      const creditError = new Error(
+        `Anthropic API credit balance is insufficient or account has no funds.\n` +
+        `Please add credits to your Anthropic account at https://console.anthropic.com/\n` +
+        `Original error: ${errorMessage}`
+      );
+      (creditError as any).isCreditError = true;
+      (creditError as any).statusCode = 402;
+      throw creditError;
+    }
+    
+    // Detect authentication errors (401)
+    if (
+      statusCode === 401 ||
+      errorMessage.toLowerCase().includes('authentication') ||
+      errorMessage.toLowerCase().includes('api key') ||
+      errorMessage.toLowerCase().includes('invalid api key') ||
+      errorMessage.toLowerCase().includes('unauthorized')
+    ) {
+      const authError = new Error(
+        `Anthropic API authentication failed. Please check your ANTHROPIC_API_KEY.\n` +
+        `Get your API key from: https://console.anthropic.com/\n` +
+        `Original error: ${errorMessage}`
+      );
+      (authError as any).isAuthError = true;
+      (authError as any).statusCode = 401;
+      throw authError;
+    }
+
+    // Handle rate limiting (429)
+    if (statusCode === 429) {
+      const rateLimitError = new Error(
+        `Anthropic API rate limit exceeded. Please wait before retrying.\n` +
+        `Original error: ${errorMessage}`
+      );
+      (rateLimitError as any).isRateLimitError = true;
+      (rateLimitError as any).statusCode = 429;
+      throw rateLimitError;
     }
     
     console.error('Claude API error:', error);
-    const apiError = new Error(`Claude API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const apiError = new Error(
+      `Claude API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
     (apiError as any).originalError = error;
-    (apiError as any).statusCode = error?.status || error?.statusCode || 500;
+    (apiError as any).statusCode = statusCode || 500;
     throw apiError;
   }
 }
