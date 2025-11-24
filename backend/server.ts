@@ -12,6 +12,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import fs from 'fs';
 import agentRoutes from './api/routes/agents.js';
 import adminRoutes from './api/routes/admin.js';
 import cbaRoutes from './api/cba-routes.js';
@@ -95,7 +96,21 @@ io.on('connection', (socket) => {
 });
 
 // Serve static frontend files from /public directory
-const publicPath = path.join(__dirname, '..', 'public');
+// In production (Docker), files are at /app/public
+// In development, they might be at ../dist or ../public
+let publicPath: string;
+if (process.env.NODE_ENV === 'production') {
+  // Production: use absolute path /app/public (as set up in Dockerfile)
+  publicPath = '/app/public';
+} else {
+  // Development: try multiple possible locations
+  publicPath = path.join(__dirname, '..', 'dist');
+  // Fallback to public if dist doesn't exist
+  if (!fs.existsSync(publicPath)) {
+    publicPath = path.join(__dirname, '..', 'public');
+  }
+}
+
 console.log(`📁 Serving static files from: ${publicPath}`);
 app.use(express.static(publicPath));
 
@@ -108,9 +123,11 @@ app.get('*', (req, res, next) => {
   }
 
   // Serve index.html for all other routes (client-side routing)
-  res.sendFile(path.join(publicPath, 'index.html'), (err) => {
+  const indexPath = path.join(publicPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
     if (err) {
       console.error('Error serving index.html:', err);
+      console.error(`Attempted path: ${indexPath}`);
       res.status(500).send('Error loading application');
     }
   });
