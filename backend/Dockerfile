@@ -57,7 +57,7 @@ WORKDIR /app
 COPY backend/package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy built backend from backend-builder
 COPY --from=backend-builder /app/backend/dist ./dist
@@ -72,5 +72,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD sh -c "wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1"
 
-# Start server
-CMD ["npm", "start"]
+# Start server - run node directly to avoid npm start issues
+CMD ["node", "dist/server.js"]
