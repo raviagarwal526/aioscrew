@@ -4,9 +4,18 @@ import type { CrewMember, Trip, Claim } from '../types';
 export const crewService = {
   async getCurrentUser(): Promise<CrewMember | null> {
     try {
-      const result = await sql`
+      // First try to get CM001 (default user)
+      let result = await sql`
         SELECT * FROM crew_members WHERE id = 'CM001' LIMIT 1
       `;
+      
+      // If CM001 doesn't exist, get the first available crew member
+      if (!result || result.length === 0) {
+        result = await sql`
+          SELECT * FROM crew_members WHERE status = 'active' ORDER BY seniority DESC LIMIT 1
+        `;
+      }
+      
       return result[0] as CrewMember || null;
     } catch (error) {
       console.error('Error fetching current user:', error);

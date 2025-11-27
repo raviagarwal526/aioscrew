@@ -212,8 +212,11 @@ CREATE INDEX IF NOT EXISTS idx_roster_versions_active ON roster_versions(is_acti
 -- DISRUPTION MANAGEMENT
 -- ============================================================================
 
--- Disruption events
-CREATE TABLE IF NOT EXISTS disruptions (
+-- Drop old disruptions table if it exists (from base_schema) and recreate with proper structure
+DROP TABLE IF EXISTS disruptions CASCADE;
+
+-- Disruption events (complete structure for crew scheduling)
+CREATE TABLE disruptions (
     disruption_id SERIAL PRIMARY KEY,
     disruption_type VARCHAR(50) NOT NULL, -- 'delay', 'cancellation', 'crew_unavailable', 'aircraft_change', 'weather'
     severity VARCHAR(20) NOT NULL, -- 'minor', 'moderate', 'major', 'critical'

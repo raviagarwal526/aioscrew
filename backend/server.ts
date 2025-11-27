@@ -3,48 +3,51 @@
  */
 
 import { config } from "dotenv";
-// Load environment variables
-config();
+import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
+import fs from "fs";
+import agentRoutes from "./api/routes/agents.js";
+import adminRoutes from "./api/routes/admin.js";
+import cbaRoutes from "./api/cba-routes.js";
+import crewSchedulingRoutes from "./api/routes/crew-scheduling.js";
 
-import express from 'express';
-import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import fs from 'fs';
-import agentRoutes from './api/routes/agents.js';
-import adminRoutes from './api/routes/admin.js';
-import cbaRoutes from './api/cba-routes.js';
-import crewSchedulingRoutes from './api/routes/crew-scheduling.js';
-
+// Load environment variables from backend/.env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true
-  }
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  },
 });
 
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = parseInt(process.env.PORT || "3001", 10);
 
 // Export io for use in other modules
 export { io };
 
 // Health check endpoint FIRST - before any middleware that could block it
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+app.get("/health", (req, res) => {
+  res
+    .status(200)
+    .json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
 // Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  })
+);
 
 // JSON body parser - errors will be caught by error handler middleware
 app.use(express.json());
@@ -62,37 +65,39 @@ app.use((req, res, next) => {
   const start = Date.now();
   console.log(`[${timestamp}] ${req.method} ${req.path}`);
 
-  res.on('finish', () => {
+  res.on("finish", () => {
     const duration = Date.now() - start;
-    console.log(`[${timestamp}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    console.log(
+      `[${timestamp}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`
+    );
   });
 
   next();
 });
 
 // API Routes
-app.use('/api/agents', agentRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/cba', cbaRoutes);
-app.use('/api/crew-scheduling', crewSchedulingRoutes);
+app.use("/api/agents", agentRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/cba", cbaRoutes);
+app.use("/api/crew-scheduling", crewSchedulingRoutes);
 
 // WebSocket connection handling
-io.on('connection', (socket) => {
+io.on("connection", (socket) => {
   console.log(`🔌 WebSocket client connected: ${socket.id}`);
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     console.log(`🔌 WebSocket client disconnected: ${socket.id}`);
   });
 
   // Join admin room for agent activity updates
-  socket.on('join:admin', () => {
-    socket.join('admin');
+  socket.on("join:admin", () => {
+    socket.join("admin");
     console.log(`👤 Client ${socket.id} joined admin room`);
   });
 
   // Leave admin room
-  socket.on('leave:admin', () => {
-    socket.leave('admin');
+  socket.on("leave:admin", () => {
+    socket.leave("admin");
     console.log(`👤 Client ${socket.id} left admin room`);
   });
 });
@@ -100,23 +105,25 @@ io.on('connection', (socket) => {
 // Serve static frontend files from /public directory
 // In production (Docker), files are at /app/public
 // In development, they might be at ../dist or ../public
-const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT === 'production';
+const isProduction =
+  process.env.NODE_ENV === "production" ||
+  process.env.RAILWAY_ENVIRONMENT === "production";
 
-let publicPath: string = '/app/public'; // Default fallback
+let publicPath: string = "/app/public"; // Default fallback
 
 if (isProduction) {
   // Production: try multiple possible locations based on Dockerfile structure
   // Dockerfile copies frontend dist to /app/public
   const possiblePaths = [
-    '/app/public',           // Standard Dockerfile location
-    '/app/dist',             // Alternative location
-    path.join(__dirname, '..', 'public'), // Relative fallback
-    path.join(__dirname, '..', 'dist'),   // Relative fallback
+    "/app/public", // Standard Dockerfile location
+    "/app/dist", // Alternative location
+    path.join(__dirname, "..", "public"), // Relative fallback
+    path.join(__dirname, "..", "dist"), // Relative fallback
   ];
-  
+
   // Find the first path that exists and contains index.html
   for (const testPath of possiblePaths) {
-    const indexPath = path.join(testPath, 'index.html');
+    const indexPath = path.join(testPath, "index.html");
     if (fs.existsSync(indexPath)) {
       publicPath = testPath;
       break;
@@ -125,26 +132,28 @@ if (isProduction) {
 } else {
   // Development: try multiple possible locations
   // __dirname is backend/dist, so go up to root, then into dist
-  publicPath = path.join(__dirname, '..', 'dist');
+  publicPath = path.join(__dirname, "..", "dist");
   // Fallback to public if dist doesn't exist
   if (!fs.existsSync(publicPath)) {
-    publicPath = path.join(__dirname, '..', 'public');
+    publicPath = path.join(__dirname, "..", "public");
   }
 }
 
 console.log(`📁 Serving static files from: ${publicPath}`);
 console.log(`📁 __dirname: ${__dirname}`);
-console.log(`📁 NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
-console.log(`📁 RAILWAY_ENVIRONMENT: ${process.env.RAILWAY_ENVIRONMENT || 'not set'}`);
+console.log(`📁 NODE_ENV: ${process.env.NODE_ENV || "not set"}`);
+console.log(
+  `📁 RAILWAY_ENVIRONMENT: ${process.env.RAILWAY_ENVIRONMENT || "not set"}`
+);
 
 // Verify index.html exists
-const indexPath = path.join(publicPath, 'index.html');
+const indexPath = path.join(publicPath, "index.html");
 if (!fs.existsSync(indexPath)) {
   console.error(`⚠️  WARNING: index.html not found at ${indexPath}`);
   console.error(`   Attempting to list directory contents of ${publicPath}:`);
   try {
     const files = fs.readdirSync(publicPath);
-    console.error(`   Found files: ${files.join(', ')}`);
+    console.error(`   Found files: ${files.join(", ")}`);
   } catch (err) {
     console.error(`   Could not read directory: ${err}`);
   }
@@ -153,112 +162,134 @@ app.use(express.static(publicPath));
 
 // Catch-all route to serve index.html for client-side routing (SPA support)
 // This MUST come after API routes to ensure API endpoints are not overridden
-app.get('*', (req, res, next) => {
+app.get("*", (req, res, next) => {
   // Skip API routes and health check - let them fall through to 404 if not matched
-  if (req.path.startsWith('/api/') || req.path === '/health') {
+  if (req.path.startsWith("/api/") || req.path === "/health") {
     return next();
   }
 
   // Serve index.html for all other routes (client-side routing)
-  const indexPath = path.join(publicPath, 'index.html');
+  const indexPath = path.join(publicPath, "index.html");
   res.sendFile(indexPath, (err) => {
     if (err) {
-      console.error('Error serving index.html:', err);
+      console.error("Error serving index.html:", err);
       console.error(`Attempted path: ${indexPath}`);
-      res.status(500).send('Error loading application');
+      res.status(500).send("Error loading application");
     }
   });
 });
 
 // Error handling middleware - must be after routes
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  // Prevent sending response if headers already sent
-  if (res.headersSent) {
-    return next(err);
-  }
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    // Prevent sending response if headers already sent
+    if (res.headersSent) {
+      return next(err);
+    }
 
-  // Handle JSON parsing errors
-  if (err.type === 'entity.parse.failed' || err instanceof SyntaxError) {
-    console.error('JSON parsing error:', err);
-    return res.status(400).json({
-      error: 'Invalid JSON in request body',
-      message: 'The request body contains invalid JSON. Please check your request format.',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    // Handle JSON parsing errors
+    if (err.type === "entity.parse.failed" || err instanceof SyntaxError) {
+      console.error("JSON parsing error:", err);
+      return res.status(400).json({
+        error: "Invalid JSON in request body",
+        message:
+          "The request body contains invalid JSON. Please check your request format.",
+        details:
+          process.env.NODE_ENV === "development" ? err.message : undefined,
+      });
+    }
+
+    // Handle other errors
+    console.error("Unhandled error:", err);
+
+    const statusCode = err.statusCode || err.status || 500;
+    res.status(statusCode).json({
+      error: "Internal server error",
+      message:
+        process.env.NODE_ENV === "production"
+          ? "Internal server error"
+          : err.message || "Unknown error",
+      ...(process.env.NODE_ENV === "development" && {
+        stack: err.stack,
+      }),
     });
   }
-
-  // Handle other errors
-  console.error('Unhandled error:', err);
-  
-  const statusCode = err.statusCode || err.status || 500;
-  res.status(statusCode).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message || 'Unknown error',
-    ...(process.env.NODE_ENV === 'development' && {
-      stack: err.stack
-    })
-  });
-});
+);
 
 // Start server - bind to 0.0.0.0 for Railway
-httpServer.listen(PORT, '0.0.0.0', () => {
-  const isProduction = process.env.NODE_ENV === 'production';
+httpServer.listen(PORT, "0.0.0.0", () => {
+  const isProduction = process.env.NODE_ENV === "production";
   const baseUrl = isProduction
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'your-app.up.railway.app'}`
+    ? `https://${
+        process.env.RAILWAY_PUBLIC_DOMAIN || "your-app.up.railway.app"
+      }`
     : `http://localhost:${PORT}`;
 
-  console.log('\n🚀 Aioscrew AI Agent Backend');
-  console.log('================================');
+  console.log("\n🚀 Aioscrew AI Agent Backend");
+  console.log("================================");
   console.log(`📡 Server running on port ${PORT}`);
   console.log(`🌐 API: ${baseUrl}`);
-  console.log(`🔗 Frontend: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  console.log(
+    `🔗 Frontend: ${process.env.FRONTEND_URL || "http://localhost:5173"}`
+  );
   console.log(`🤖 Agents: Flight Time, Premium Pay, Compliance`);
   console.log(`🔌 WebSocket: Enabled for real-time updates`);
-  console.log(`🔑 Claude API: ${process.env.ANTHROPIC_API_KEY ? 'Configured ✓' : 'Missing ✗'}`);
-  console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected ✓' : 'Missing ✗'}`);
-  console.log(`📊 Neo4j: ${process.env.NEO4J_URI ? 'Configured ✓' : 'Missing ✗'}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('================================');
+  console.log(
+    `🔑 Claude API: ${
+      process.env.ANTHROPIC_API_KEY ? "Configured ✓" : "Missing ✗"
+    }`
+  );
+  console.log(
+    `💾 Database: ${process.env.DATABASE_URL ? "Connected ✓" : "Missing ✗"}`
+  );
+  console.log(
+    `📊 Neo4j: ${process.env.NEO4J_URI ? "Configured ✓" : "Missing ✗"}`
+  );
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log("================================");
   console.log(`✅ Server is listening and ready to accept connections\n`);
 });
 
 // Handle server errors
-httpServer.on('error', (error: NodeJS.ErrnoException) => {
-  console.error('❌ Server error:', error);
-  if (error.code === 'EADDRINUSE') {
+httpServer.on("error", (error: NodeJS.ErrnoException) => {
+  console.error("❌ Server error:", error);
+  if (error.code === "EADDRINUSE") {
     console.error(`Port ${PORT} is already in use`);
   }
   process.exit(1);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully...');
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received, shutting down gracefully...");
   httpServer.close(async () => {
     try {
-      const { closeNeo4jDriver } = await import('./services/neo4j-service.js');
+      const { closeNeo4jDriver } = await import("./services/neo4j-service.js");
       await closeNeo4jDriver();
-      console.log('✅ Server closed gracefully');
+      console.log("✅ Server closed gracefully");
       process.exit(0);
     } catch (error) {
-      console.error('Error during shutdown:', error);
+      console.error("Error during shutdown:", error);
       process.exit(1);
     }
   });
 });
 
-process.on('SIGINT', async () => {
-  console.log('\nSIGINT received, shutting down gracefully...');
+process.on("SIGINT", async () => {
+  console.log("\nSIGINT received, shutting down gracefully...");
   httpServer.close(async () => {
     try {
-      const { closeNeo4jDriver } = await import('./services/neo4j-service.js');
+      const { closeNeo4jDriver } = await import("./services/neo4j-service.js");
       await closeNeo4jDriver();
-      console.log('✅ Server closed gracefully');
+      console.log("✅ Server closed gracefully");
       process.exit(0);
     } catch (error) {
-      console.error('Error during shutdown:', error);
+      console.error("Error during shutdown:", error);
       process.exit(1);
     }
   });

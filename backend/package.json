@@ -9,7 +9,17 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed:neo4j": "tsx scripts/seed-neo4j.ts"
+    "migrate": "tsx scripts/run-migrations.ts",
+    "seed": "tsx scripts/seed-database.ts",
+    "seed:neo4j": "tsx scripts/seed-neo4j.ts",
+    "generate-data": "tsx scripts/generate-industry-data.ts",
+    "generate-data:small": "tsx scripts/generate-industry-data.ts --small",
+    "generate-data:large": "tsx scripts/generate-industry-data.ts --large",
+    "generate-data:real": "tsx scripts/generate-industry-data.ts --real-data",
+    "generate-data:real-small": "tsx scripts/generate-industry-data.ts --small --real-data",
+    "generate-data:real-large": "tsx scripts/generate-industry-data.ts --large --real-data",
+    "cleanup-data": "tsx scripts/cleanup-test-data.ts",
+    "verify-data": "tsx scripts/verify-data.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.1",
@@ -17,6 +27,7 @@
     "@langchain/core": "^0.3.26",
     "@langchain/langgraph": "^0.2.28",
     "@neondatabase/serverless": "^1.0.2",
+    "pg": "^8.11.3",
     "express": "^4.18.2",
     "socket.io": "^4.7.2",
     "cors": "^2.8.5",
@@ -32,6 +43,7 @@
     "@types/cors": "^2.8.17",
     "@types/node": "^20.10.0",
     "@types/multer": "^1.4.11",
+    "@types/pg": "^8.10.9",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }

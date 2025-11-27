@@ -77,9 +77,18 @@ export default function CrewMemberViewEnhanced() {
 
   if (!currentUser) {
     return (
-      <div className="text-center py-12">
-        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <p className="text-gray-600">Unable to load user data</p>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-900 font-semibold text-lg mb-2">No Crew Member Found</p>
+          <p className="text-gray-600 mb-4">Unable to load crew member data. Please ensure the database has been initialized with crew member data.</p>
+          <button
+            onClick={loadData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

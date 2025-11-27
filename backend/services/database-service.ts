@@ -2,12 +2,23 @@
  * Database service for fetching claim, trip, and crew data
  */
 
-import { neon } from '@neondatabase/serverless';
-import type { ClaimInput, TripData, CrewData, HistoricalData } from '../agents/shared/types.js';
+import { config } from "dotenv";
+import { neon } from "@neondatabase/serverless";
+import type {
+  ClaimInput,
+  TripData,
+  CrewData,
+  HistoricalData,
+} from "../agents/shared/types.js";
+
+// Load environment variables (in case this module is imported before server.ts)
+config();
 
 const sql = neon(process.env.DATABASE_URL!);
 
-export async function getClaimById(claimId: string): Promise<ClaimInput | null> {
+export async function getClaimById(
+  claimId: string
+): Promise<ClaimInput | null> {
   try {
     const results = await sql`
       SELECT
@@ -41,10 +52,10 @@ export async function getClaimById(claimId: string): Promise<ClaimInput | null> 
       flightNumber: row.flight_number as string,
       amount: Number(row.amount),
       submittedDate: new Date(row.submitted_date as string),
-      description: row.description as string | undefined
+      description: row.description as string | undefined,
     };
   } catch (error) {
-    console.error('Error fetching claim:', error);
+    console.error("Error fetching claim:", error);
     return null;
   }
 }
@@ -73,15 +84,17 @@ export async function getTripById(tripId: string): Promise<TripData | null> {
       layoverCity: row.layover_city as string | undefined,
       isInternational: Boolean(row.is_international),
       aircraftType: row.aircraft_type as string,
-      status: row.status as string
+      status: row.status as string,
     };
   } catch (error) {
-    console.error('Error fetching trip:', error);
+    console.error("Error fetching trip:", error);
     return null;
   }
 }
 
-export async function getCrewMemberById(crewId: string): Promise<CrewData | null> {
+export async function getCrewMemberById(
+  crewId: string
+): Promise<CrewData | null> {
   try {
     const results = await sql`
       SELECT *
@@ -101,10 +114,10 @@ export async function getCrewMemberById(crewId: string): Promise<CrewData | null
       seniority: Number(row.seniority),
       qualification: row.qualification as string,
       hireDate: new Date(row.hire_date as string),
-      ytdEarnings: Number(row.ytd_earnings)
+      ytdEarnings: Number(row.ytd_earnings),
     };
   } catch (error) {
-    console.error('Error fetching crew member:', error);
+    console.error("Error fetching crew member:", error);
     return null;
   }
 }
@@ -168,16 +181,16 @@ export async function getHistoricalData(
         tripId: row.trip_id as string,
         flightNumber: row.flight_number as string,
         amount: Number(row.amount),
-        submittedDate: new Date(row.submitted_date as string)
-      }))
+        submittedDate: new Date(row.submitted_date as string),
+      })),
     };
   } catch (error) {
-    console.error('Error fetching historical data:', error);
+    console.error("Error fetching historical data:", error);
     return {
       similarClaims: 0,
       approvalRate: 0,
       averageAmount: 0,
-      recentClaimsByUser: []
+      recentClaimsByUser: [],
     };
   }
 }
@@ -200,7 +213,7 @@ export async function updateClaimWithValidation(
     `;
     return true;
   } catch (error) {
-    console.error('Error updating claim:', error);
+    console.error("Error updating claim:", error);
     return false;
   }
 }
