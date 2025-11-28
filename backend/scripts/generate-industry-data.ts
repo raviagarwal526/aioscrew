@@ -163,16 +163,26 @@ const ROUTES = [
 
 const AIRCRAFT_TYPES = ["737-800", "737-MAX", "787-9"];
 
-// CBA-based claim amounts
+// CBA-based claim amounts - All common airline claim types
 const CBA_RATES = {
   "International Premium": { base: 125, perLeg: true },
+  "Night Premium": { hourly: 5, minHours: 1 }, // Per hour for flights 2200-0600
+  "Holiday Premium": { major: 75, minor: 50 },
+  "Weekend Premium": { base: 50 }, // Work on Saturday/Sunday
+  "Reserve Call-Out": { minimum: 200, hours: 4 }, // Minimum 4 hours pay
+  "Training Premium": { base: 200 },
   "Per Diem": { domestic: 75, international: 100 },
-  "Holiday Pay": { major: 75, minor: 50 },
   Overtime: { tier1: 50, tier2: 75, tier3: 100 },
   "Layover Premium": { short: 50, long: 100 },
-  Training: { base: 200 },
-  "Lead Premium": { base: 100 },
-  Deadhead: { base: 150 },
+  "Lead Premium": { base: 100 }, // Lead flight attendant
+  Deadhead: { base: 150 }, // Traveling as passenger
+  "Minimum Day Guarantee": { base: 300 }, // Minimum pay guarantee
+  "Standby Pay": { hourly: 25, minHours: 2 }, // Standby assignments
+  "Trip Rig": { base: 250 }, // Minimum pay for trip
+  "Duty Rig": { base: 200 }, // Minimum pay for duty period
+  "Cancellation Pay": { base: 150 }, // Trip cancelled
+  "Diversion Pay": { base: 100 }, // Flight diverted
+  "Delay Pay": { hourly: 30, minHours: 2 }, // Extended delays
 };
 
 function randomChoice<T>(array: T[]): T {
@@ -354,17 +364,27 @@ function generateTrip(
   };
 }
 
-// Generate claim with CBA-based amounts
+// Generate claim with CBA-based amounts - All common airline claim types
 function generateClaim(crewMember: any, trip: any, claimDate: Date) {
   const claimTypes = [
-    { type: "International Premium", weight: 0.45 },
-    { type: "Per Diem", weight: 0.25 },
-    { type: "Holiday Pay", weight: 0.12 },
-    { type: "Overtime", weight: 0.08 },
-    { type: "Layover Premium", weight: 0.05 },
-    { type: "Training", weight: 0.03 },
-    { type: "Lead Premium", weight: 0.01 },
-    { type: "Deadhead", weight: 0.01 },
+    { type: "International Premium", weight: 0.25 },
+    { type: "Per Diem", weight: 0.20 },
+    { type: "Night Premium", weight: 0.15 },
+    { type: "Holiday Premium", weight: 0.08 },
+    { type: "Weekend Premium", weight: 0.06 },
+    { type: "Overtime", weight: 0.05 },
+    { type: "Layover Premium", weight: 0.04 },
+    { type: "Reserve Call-Out", weight: 0.04 },
+    { type: "Training Premium", weight: 0.03 },
+    { type: "Lead Premium", weight: 0.02 },
+    { type: "Deadhead", weight: 0.02 },
+    { type: "Minimum Day Guarantee", weight: 0.02 },
+    { type: "Standby Pay", weight: 0.015 },
+    { type: "Trip Rig", weight: 0.015 },
+    { type: "Duty Rig", weight: 0.01 },
+    { type: "Cancellation Pay", weight: 0.01 },
+    { type: "Diversion Pay", weight: 0.005 },
+    { type: "Delay Pay", weight: 0.005 },
   ];
 
   let rand = Math.random();
@@ -385,18 +405,32 @@ function generateClaim(crewMember: any, trip: any, claimDate: Date) {
         CBA_RATES["International Premium"].base *
         (trip.is_international ? 1 : 0);
       break;
+    case "Night Premium":
+      // Night flights (2200-0600) - calculate based on flight time
+      const nightHours = Math.max(1, Math.floor(trip.flight_time_hours || 3));
+      amount = CBA_RATES["Night Premium"].hourly * nightHours;
+      break;
+    case "Holiday Premium":
+      amount =
+        Math.random() > 0.5
+          ? CBA_RATES["Holiday Premium"].major
+          : CBA_RATES["Holiday Premium"].minor;
+      break;
+    case "Weekend Premium":
+      amount = CBA_RATES["Weekend Premium"].base;
+      break;
+    case "Reserve Call-Out":
+      amount = CBA_RATES["Reserve Call-Out"].minimum;
+      break;
+    case "Training Premium":
+      amount = CBA_RATES["Training Premium"].base;
+      break;
     case "Per Diem":
       const nights = randomInt(1, 4);
       amount =
         (trip.is_international
           ? CBA_RATES["Per Diem"].international
           : CBA_RATES["Per Diem"].domestic) * nights;
-      break;
-    case "Holiday Pay":
-      amount =
-        Math.random() > 0.5
-          ? CBA_RATES["Holiday Pay"].major
-          : CBA_RATES["Holiday Pay"].minor;
       break;
     case "Overtime":
       const hours = randomInt(5, 20);
@@ -414,14 +448,34 @@ function generateClaim(crewMember: any, trip: any, claimDate: Date) {
           ? CBA_RATES["Layover Premium"].long
           : CBA_RATES["Layover Premium"].short;
       break;
-    case "Training":
-      amount = CBA_RATES["Training"].base;
-      break;
     case "Lead Premium":
       amount = CBA_RATES["Lead Premium"].base;
       break;
     case "Deadhead":
       amount = CBA_RATES["Deadhead"].base;
+      break;
+    case "Minimum Day Guarantee":
+      amount = CBA_RATES["Minimum Day Guarantee"].base;
+      break;
+    case "Standby Pay":
+      const standbyHours = randomInt(2, 8);
+      amount = CBA_RATES["Standby Pay"].hourly * standbyHours;
+      break;
+    case "Trip Rig":
+      amount = CBA_RATES["Trip Rig"].base;
+      break;
+    case "Duty Rig":
+      amount = CBA_RATES["Duty Rig"].base;
+      break;
+    case "Cancellation Pay":
+      amount = CBA_RATES["Cancellation Pay"].base;
+      break;
+    case "Diversion Pay":
+      amount = CBA_RATES["Diversion Pay"].base;
+      break;
+    case "Delay Pay":
+      const delayHours = randomInt(2, 6);
+      amount = CBA_RATES["Delay Pay"].hourly * delayHours;
       break;
   }
 
