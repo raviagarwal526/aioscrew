@@ -66,18 +66,9 @@ export default function ConversationalAI({ role, context }: ConversationalAIProp
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg border border-gray-200">
-      <div className="flex items-center gap-3 px-4 py-4 border-b bg-gradient-to-r from-blue-50 to-white">
-        <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center">
-          <Sparkles className="text-white w-5 h-5" />
-        </div>
-        <div>
-          <h3 className="font-bold text-slate-900">AI Assistant</h3>
-          <p className="text-xs text-gray-600">Powered by AI from dCortex</p>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[400px] max-h-[600px]">
+    <div className="flex flex-col h-full bg-white">
+      {/* Scrollable middle section - Only this scrolls */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && (
           <div className="text-center py-8">
             <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 mb-4">
@@ -106,7 +97,7 @@ export default function ConversationalAI({ role, context }: ConversationalAIProp
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
+              className={`max-w-[85%] rounded-lg px-4 py-2 ${
                 message.role === 'user'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-900'
@@ -115,9 +106,9 @@ export default function ConversationalAI({ role, context }: ConversationalAIProp
               {message.context && (
                 <div className="text-xs opacity-75 mb-1 italic">{message.context}</div>
               )}
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
               <div className={`text-xs mt-1 ${
-                message.role === 'user' ? 'text-gray-600' : 'text-gray-500'
+                message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
               }`}>
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
@@ -140,7 +131,8 @@ export default function ConversationalAI({ role, context }: ConversationalAIProp
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t border-gray-200">
+      {/* Fixed input at bottom - Always visible */}
+      <div className="p-4 border-t border-gray-200 bg-white flex-shrink-0">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -153,13 +145,13 @@ export default function ConversationalAI({ role, context }: ConversationalAIProp
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask me about crew operations..."
-            className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+            className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 text-sm"
             disabled={isTyping}
           />
           <button
             type="submit"
             disabled={!input.trim() || isTyping}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+            className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold flex-shrink-0"
           >
             <Send className="w-5 h-5" />
           </button>

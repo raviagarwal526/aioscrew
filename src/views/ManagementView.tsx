@@ -1,5 +1,4 @@
 import { TrendingDown, TrendingUp, Users, DollarSign, Activity, BarChart3 } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 
 export default function ManagementView() {
   return (
@@ -207,49 +206,42 @@ export default function ManagementView() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-purple-600" />
-            Summer Staffing Forecast
-          </h3>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <div className="text-sm font-semibold text-blue-900 mb-2">Predictive Analysis: Jun-Aug 2025</div>
-            <div className="text-3xl font-bold text-blue-600 mb-1">+18 crew needed</div>
-            <div className="text-sm text-gray-700">+14% increase vs current staffing</div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-16 text-center">
-                <div className="text-xl font-bold text-gray-900">12</div>
-                <div className="text-xs text-gray-600">Pilots</div>
-              </div>
-              <div className="flex-1 text-sm text-gray-700">
-                6 Captains + 6 First Officers for increased flight schedule
-              </div>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Users className="w-5 h-5 text-purple-600" />
+          Summer Staffing Forecast
+        </h3>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="text-sm font-semibold text-blue-900 mb-2">Predictive Analysis: Jun-Aug 2025</div>
+          <div className="text-3xl font-bold text-blue-600 mb-1">+18 crew needed</div>
+          <div className="text-sm text-gray-700">+14% increase vs current staffing</div>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="w-16 text-center">
+              <div className="text-xl font-bold text-gray-900">12</div>
+              <div className="text-xs text-gray-600">Pilots</div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-16 text-center">
-                <div className="text-xl font-bold text-gray-900">6</div>
-                <div className="text-xs text-gray-600">FAs</div>
-              </div>
-              <div className="flex-1 text-sm text-gray-700">
-                Flight Attendants for cabin crew coverage
-              </div>
+            <div className="flex-1 text-sm text-gray-700">
+              6 Captains + 6 First Officers for increased flight schedule
             </div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-            <div className="font-semibold text-amber-900 mb-1">Hiring Recommendation</div>
-            <div className="text-sm text-gray-700">
-              Start hiring by February to complete training by May. Cost: ~$890K (training + onboarding)
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="w-16 text-center">
+              <div className="text-xl font-bold text-gray-900">6</div>
+              <div className="text-xs text-gray-600">FAs</div>
+            </div>
+            <div className="flex-1 text-sm text-gray-700">
+              Flight Attendants for cabin crew coverage
             </div>
           </div>
         </div>
-
-        <ConversationalAI
-          role="management"
-          context="Q4 2024 Executive Dashboard"
-        />
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+          <div className="font-semibold text-amber-900 mb-1">Hiring Recommendation</div>
+          <div className="text-sm text-gray-700">
+            Start hiring by February to complete training by May. Cost: ~$890K (training + onboarding)
+          </div>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-4 gap-4">

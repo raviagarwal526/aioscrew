@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, CheckCircle, Clock, AlertCircle, FileText } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 import { crewService } from '../services/crewService';
 
 export default function PayrollViewEnhanced() {
@@ -116,72 +115,65 @@ export default function PayrollViewEnhanced() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-amber-600" />
-            Pending Claims Review
-          </h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {pendingClaims.map((claim) => (
-              <div key={claim.id} className="border border-amber-200 rounded-lg p-4 bg-amber-50">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="font-semibold text-gray-900">{claim.crew_name || 'Unknown Crew'}</div>
-                    <div className="text-sm text-gray-600">{claim.claim_type}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">${claim.amount}</div>
-                    <div className="text-xs text-amber-600 font-medium">PENDING</div>
-                  </div>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-amber-600" />
+          Pending Claims Review
+        </h3>
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {pendingClaims.map((claim) => (
+            <div key={claim.id} className="border border-amber-200 rounded-lg p-4 bg-amber-50">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="font-semibold text-gray-900">{claim.crew_name || 'Unknown Crew'}</div>
+                  <div className="text-sm text-gray-600">{claim.claim_type}</div>
                 </div>
-                {claim.ai_validated && (
-                  <div className="text-sm text-gray-700 bg-white rounded p-3 mb-3">
-                    <div className="font-medium text-gray-900 mb-1 flex items-center gap-1">
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                      AI Validation:
-                    </div>
-                    {claim.ai_explanation}
-                  </div>
-                )}
-                <div className="text-xs text-gray-500 mb-3">
-                  Trip: {claim.trip_id} | Date: {new Date(claim.claim_date).toLocaleDateString()}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleApprove(claim.id)}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => handleReject(claim.id)}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    onClick={() => setSelectedClaim(claim)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-sm"
-                  >
-                    Details
-                  </button>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-gray-900">${claim.amount}</div>
+                  <div className="text-xs text-amber-600 font-medium">PENDING</div>
                 </div>
               </div>
-            ))}
-            {pendingClaims.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-300" />
-                <p>No pending claims to review</p>
+              {claim.ai_validated && (
+                <div className="text-sm text-gray-700 bg-white rounded p-3 mb-3">
+                  <div className="font-medium text-gray-900 mb-1 flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    AI Validation:
+                  </div>
+                  {claim.ai_explanation}
+                </div>
+              )}
+              <div className="text-xs text-gray-500 mb-3">
+                Trip: {claim.trip_id} | Date: {new Date(claim.claim_date).toLocaleDateString()}
               </div>
-            )}
-          </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleApprove(claim.id)}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleReject(claim.id)}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => setSelectedClaim(claim)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Details
+                </button>
+              </div>
+            </div>
+          ))}
+          {pendingClaims.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-300" />
+              <p>No pending claims to review</p>
+            </div>
+          )}
         </div>
-
-        <ConversationalAI
-          role="payroll"
-          context="Payroll Period: Nov 16-30, 2024"
-        />
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">

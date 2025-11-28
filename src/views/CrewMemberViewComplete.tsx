@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, DollarSign, FileText, Settings as SettingsIcon, Plus, X, MessageCircle } from 'lucide-react';
 import ScheduleView from '../components/schedule/ScheduleView';
-import ConversationalAI from '../components/ConversationalAI';
 import ClaimCreationForm from '../components/ClaimCreationForm';
 import ConversationalClaimBuilder from '../components/ConversationalClaimBuilder';
 import { crewService } from '../services/crewService';
@@ -174,11 +173,6 @@ export default function CrewMemberViewComplete({ activeView, onViewChange }: Cre
                   <div className="text-xs text-gray-600">Preferences & profile</div>
                 </button>
               </div>
-
-              <ConversationalAI
-                role="crew-member"
-                context={`${currentUser.role} ${currentUser.name} - ${currentUser.base} base`}
-              />
             </div>
           )}
 

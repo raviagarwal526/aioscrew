@@ -1,5 +1,4 @@
 import { CheckCircle, AlertCircle, Calendar, DollarSign, GraduationCap, Plane, Clock } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 import { crewMembers, trips } from '../data/mockData';
 
 export default function CrewMemberView() {
@@ -66,56 +65,49 @@ export default function CrewMemberView() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-600" />
-            Upcoming Schedule
-          </h3>
-          <div className="space-y-3">
-            {userTrips.slice(0, 4).map((trip) => (
-              <div key={trip.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className={`p-2 rounded-lg ${
-                  trip.status === 'scheduled' ? 'bg-blue-100' :
-                  trip.status === 'cancelled' ? 'bg-red-100' :
-                  'bg-green-100'
-                }`}>
-                  <Plane className={`w-4 h-4 ${
-                    trip.status === 'scheduled' ? 'text-blue-600' :
-                    trip.status === 'cancelled' ? 'text-red-600' :
-                    'text-green-600'
-                  }`} />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900">{trip.id}</div>
-                  <div className="text-sm text-gray-600">{trip.route}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">
-                    {new Date(trip.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </div>
-                  <div className="text-xs text-gray-500 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {trip.creditHours}h credit
-                  </div>
-                </div>
-                {trip.international && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                    INTL
-                  </span>
-                )}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-blue-600" />
+          Upcoming Schedule
+        </h3>
+        <div className="space-y-3">
+          {userTrips.slice(0, 4).map((trip) => (
+            <div key={trip.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <div className={`p-2 rounded-lg ${
+                trip.status === 'scheduled' ? 'bg-blue-100' :
+                trip.status === 'cancelled' ? 'bg-red-100' :
+                'bg-green-100'
+              }`}>
+                <Plane className={`w-4 h-4 ${
+                  trip.status === 'scheduled' ? 'text-blue-600' :
+                  trip.status === 'cancelled' ? 'text-red-600' :
+                  'text-green-600'
+                }`} />
               </div>
-            ))}
-          </div>
-          <button className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            View Full Schedule
-          </button>
+              <div className="flex-1">
+                <div className="font-semibold text-gray-900">{trip.id}</div>
+                <div className="text-sm text-gray-600">{trip.route}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium text-gray-900">
+                  {new Date(trip.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {trip.creditHours}h credit
+                </div>
+              </div>
+              {trip.international && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  INTL
+                </span>
+              )}
+            </div>
+          ))}
         </div>
-
-        <ConversationalAI
-          role="crew-member"
-          context={`${currentUser.role} ${currentUser.name} - ${currentUser.base} base`}
-        />
+        <button className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          View Full Schedule
+        </button>
       </div>
 
       <div className="grid md:grid-cols-4 gap-4">

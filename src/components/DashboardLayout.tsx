@@ -1,14 +1,19 @@
 import { ReactNode } from 'react';
-import { LogOut, Menu, X } from 'lucide-react';
+import { LogOut, ChevronRight } from 'lucide-react';
 import { UserRole } from '../types';
-import { useState } from 'react';
+import HorizontalNavigation from './HorizontalNavigation';
+import AIAssistantPanel from './AIAssistantPanel';
 
 interface DashboardLayoutProps {
   role: UserRole;
   onLogout: () => void;
   children: ReactNode;
-  sidebar: ReactNode;
+  activeView: string;
+  onViewChange: (view: string) => void;
   title: string;
+  aiContext?: string;
+  showAIAssistant?: boolean;
+  aiAssistantDefaultWidth?: number;
 }
 
 const roleConfig = {
@@ -22,22 +27,25 @@ const roleConfig = {
   'executive': { name: 'Executive', color: 'indigo' }
 };
 
-export default function DashboardLayout({ role, onLogout, children, sidebar, title }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export default function DashboardLayout({ 
+  role, 
+  onLogout, 
+  children, 
+  activeView,
+  onViewChange,
+  title,
+  aiContext,
+  showAIAssistant = true,
+  aiAssistantDefaultWidth = 40
+}: DashboardLayoutProps) {
   const config = roleConfig[role];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-lg">
-        <div className="container mx-auto px-6">
-          <div className="flex items-center justify-between h-20">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      <header className="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-lg flex-shrink-0 h-20">
+        <div className="container mx-auto px-6 h-full">
+          <div className="flex items-center justify-between h-full">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
               <img
                 src="/image copy.png"
                 alt="Copa Airlines"
@@ -69,47 +77,34 @@ export default function DashboardLayout({ role, onLogout, children, sidebar, tit
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex gap-6">
-          <aside
-            className={`
-              fixed lg:static inset-y-0 left-0 z-40
-              w-64 bg-slate-800 text-white rounded-lg shadow-lg
-              transform transition-transform duration-300 ease-in-out
-              ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-              mt-0 lg:mt-0 top-20 lg:top-0
-            `}
-          >
-            <div className="p-6 border-b border-slate-700">
-              <img
-                src="/image copy.png"
-                alt="Copa Airlines"
-                className="h-10 w-auto mb-3"
-              />
-              <h2 className="font-bold text-lg">Navigation</h2>
-              <p className="text-xs text-slate-400">Crew Operating System</p>
+      {/* Main Content Area - Two Separate Panels */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Left Panel - Independent with own scrollbar */}
+        <div className="flex flex-col flex-1 min-w-0 h-full">
+          {/* Horizontal Navigation */}
+          <HorizontalNavigation 
+            role={role} 
+            activeView={activeView} 
+            onViewChange={onViewChange} 
+          />
+          
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="container mx-auto px-4 py-6">
+              {children}
             </div>
-            <div className="p-4">
-              {sidebar}
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700">
-              <p className="text-xs text-slate-400 text-center">
-                Powered by AI from dCortex
-              </p>
-            </div>
-          </aside>
-
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-
-          <main className="flex-1 min-w-0">
-            {children}
-          </main>
+          </div>
         </div>
+
+        {/* Right Panel - AI Assistant with full height */}
+        {showAIAssistant && (
+          <AIAssistantPanel
+            role={role}
+            context={aiContext}
+            defaultWidth={aiAssistantDefaultWidth}
+            className="flex-shrink-0 h-full"
+          />
+        )}
       </div>
     </div>
   );

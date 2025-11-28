@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Calendar, DollarSign, Clock, Plane, Plus, X, MessageCircle, FileText } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 import ClaimCreationForm from '../components/ClaimCreationForm';
 import ConversationalClaimBuilder from '../components/ConversationalClaimBuilder';
 import { crewService } from '../services/crewService';
@@ -207,50 +206,43 @@ export default function CrewMemberViewEnhanced() {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-green-600" />
-                My Claims
-              </h3>
-              <button
-                onClick={handleNewClaimClick}
-                className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                New Claim
-              </button>
-            </div>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {userClaims.map((claim) => (
-                <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 text-sm">{claim.claim_type}</div>
-                    <div className="text-xs text-gray-600">{claim.trip_id}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-gray-900">${claim.amount}</div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      claim.status === 'approved' ? 'bg-green-100 text-green-700' :
-                      claim.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {claim.status.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {userClaims.length === 0 && (
-                <p className="text-center text-gray-500 py-4">No claims submitted yet</p>
-              )}
-            </div>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-600" />
+              My Claims
+            </h3>
+            <button
+              onClick={handleNewClaimClick}
+              className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Claim
+            </button>
           </div>
-
-          <ConversationalAI
-            role="crew-member"
-            context={`${currentUser.role} ${currentUser.name} - ${currentUser.base} base`}
-          />
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {userClaims.map((claim) => (
+              <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900 text-sm">{claim.claim_type}</div>
+                  <div className="text-xs text-gray-600">{claim.trip_id}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-gray-900">${claim.amount}</div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    claim.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    claim.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>
+                    {claim.status.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {userClaims.length === 0 && (
+              <p className="text-center text-gray-500 py-4">No claims submitted yet</p>
+            )}
+          </div>
         </div>
       </div>
 

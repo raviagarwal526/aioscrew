@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { UserRole } from './types';
 import LandingPage from './components/LandingPage';
 import DashboardLayout from './components/DashboardLayout';
-import Sidebar from './components/Sidebar';
 import DatabaseInit from './components/DatabaseInit';
 import CrewMemberViewComplete from './views/CrewMemberViewComplete';
 import SchedulerView from './views/SchedulerView';
@@ -120,12 +119,25 @@ function App() {
     );
   }
 
+  // Get AI context for crew-member role
+  const getAIContext = () => {
+    if (currentRole === 'crew-member') {
+      // This will be passed from the view component if needed
+      return undefined;
+    }
+    return undefined;
+  };
+
   return (
     <DashboardLayout
       role={currentRole}
       onLogout={handleLogout}
       title={currentView.title}
-      sidebar={<Sidebar role={currentRole} activeView={activeView} onViewChange={setActiveView} />}
+      activeView={activeView}
+      onViewChange={setActiveView}
+      aiContext={getAIContext()}
+      showAIAssistant={true}
+      aiAssistantDefaultWidth={40}
     >
       {currentView.component}
     </DashboardLayout>

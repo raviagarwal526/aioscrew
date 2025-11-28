@@ -1,5 +1,4 @@
 import { Scale, AlertTriangle, CheckCircle, DollarSign, Clock, TrendingUp } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 import { crewMembers } from '../data/mockData';
 import CBADocumentUpload from '../components/cba/CBADocumentUpload';
 import CBAChat from '../components/cba/CBAChat';
@@ -131,75 +130,68 @@ export default function UnionView({ activeView = 'dashboard' }: UnionViewProps) 
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-blue-600" />
-            Per Diem Rates by Base - November
-          </h3>
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-sm font-medium text-gray-700">BUR Base</div>
-                  <div className="text-xs text-gray-500">59% international rate trips</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-900">$82</div>
-                  <div className="text-xs text-gray-600">avg/day</div>
-                </div>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-blue-600" />
+          Per Diem Rates by Base - November
+        </h3>
+        <div className="space-y-6">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-sm font-medium text-gray-700">BUR Base</div>
+                <div className="text-xs text-gray-500">59% international rate trips</div>
               </div>
-              <div className="bg-gray-100 rounded-lg p-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Domestic rate ($75)</span>
-                  <span className="font-medium">41% of trips</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">International rate ($95)</span>
-                  <span className="font-medium">59% of trips</span>
-                </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900">$82</div>
+                <div className="text-xs text-gray-600">avg/day</div>
               </div>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-sm font-medium text-gray-700">PTY Base</div>
-                  <div className="text-xs text-gray-500">67% international rate trips</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-900">$88</div>
-                  <div className="text-xs text-gray-600">avg/day</div>
-                </div>
+            <div className="bg-gray-100 rounded-lg p-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Domestic rate ($75)</span>
+                <span className="font-medium">41% of trips</span>
               </div>
-              <div className="bg-gray-100 rounded-lg p-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Domestic rate ($75)</span>
-                  <span className="font-medium">33% of trips</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">International rate ($95)</span>
-                  <span className="font-medium">67% of trips</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <div className="font-semibold text-green-900">Contract Compliance</div>
-              </div>
-              <div className="text-sm text-gray-700">
-                100% compliance with minimum rates. Year-over-year increase: +$3/day (+3.5%)
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">International rate ($95)</span>
+                <span className="font-medium">59% of trips</span>
               </div>
             </div>
           </div>
-        </div>
 
-        <ConversationalAI
-          role="union"
-          context="Contract Monitoring - November 2024"
-        />
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-sm font-medium text-gray-700">PTY Base</div>
+                <div className="text-xs text-gray-500">67% international rate trips</div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900">$88</div>
+                <div className="text-xs text-gray-600">avg/day</div>
+              </div>
+            </div>
+            <div className="bg-gray-100 rounded-lg p-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Domestic rate ($75)</span>
+                <span className="font-medium">33% of trips</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">International rate ($95)</span>
+                <span className="font-medium">67% of trips</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <div className="font-semibold text-green-900">Contract Compliance</div>
+            </div>
+            <div className="text-sm text-gray-700">
+              100% compliance with minimum rates. Year-over-year increase: +$3/day (+3.5%)
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">

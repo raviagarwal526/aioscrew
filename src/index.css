@@ -49,3 +49,13 @@
 .claims-queue-scroll::-webkit-scrollbar-thumb:active {
   background: #374151;
 }
+
+/* Hide scrollbar for horizontal navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

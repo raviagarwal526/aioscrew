@@ -1,5 +1,4 @@
 import { DollarSign, CheckCircle, Clock, AlertCircle, FileText, Download } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 import { claims, crewMembers } from '../data/mockData';
 
 export default function PayrollView() {
@@ -97,55 +96,48 @@ export default function PayrollView() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-amber-600" />
-            Recent Claims - Pending Review
-          </h3>
-          <div className="space-y-3">
-            {pendingClaims.map((claim) => {
-              const crew = crewMembers.find(c => c.id === claim.crewId);
-              return (
-                <div key={claim.id} className="border border-amber-200 rounded-lg p-4 bg-amber-50">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="font-semibold text-gray-900">{crew?.name}</div>
-                      <div className="text-sm text-gray-600">{claim.type}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-gray-900">${claim.amount}</div>
-                      <div className="text-xs text-amber-600 font-medium">PENDING</div>
-                    </div>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-amber-600" />
+          Recent Claims - Pending Review
+        </h3>
+        <div className="space-y-3">
+          {pendingClaims.map((claim) => {
+            const crew = crewMembers.find(c => c.id === claim.crewId);
+            return (
+              <div key={claim.id} className="border border-amber-200 rounded-lg p-4 bg-amber-50">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="font-semibold text-gray-900">{crew?.name}</div>
+                    <div className="text-sm text-gray-600">{claim.type}</div>
                   </div>
-                  <div className="text-sm text-gray-700 bg-white rounded p-3 mb-3">
-                    <div className="font-medium text-gray-900 mb-1">AI Validation:</div>
-                    {claim.explanation}
-                  </div>
-                  <div className="text-xs text-gray-500 mb-3">
-                    Flight: {claim.flight} | Date: {new Date(claim.date).toLocaleDateString()}
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm">
-                      Approve
-                    </button>
-                    <button className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm">
-                      Reject
-                    </button>
-                    <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-sm">
-                      Details
-                    </button>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-gray-900">${claim.amount}</div>
+                    <div className="text-xs text-amber-600 font-medium">PENDING</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+                <div className="text-sm text-gray-700 bg-white rounded p-3 mb-3">
+                  <div className="font-medium text-gray-900 mb-1">AI Validation:</div>
+                  {claim.explanation}
+                </div>
+                <div className="text-xs text-gray-500 mb-3">
+                  Flight: {claim.flight} | Date: {new Date(claim.date).toLocaleDateString()}
+                </div>
+                <div className="flex gap-2">
+                  <button className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm">
+                    Approve
+                  </button>
+                  <button className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm">
+                    Reject
+                  </button>
+                  <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-sm">
+                    Details
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
-
-        <ConversationalAI
-          role="payroll"
-          context="Payroll Period: Nov 16-30, 2024"
-        />
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">

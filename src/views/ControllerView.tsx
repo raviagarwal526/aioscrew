@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { AlertCircle, CheckCircle, Users, Plane, Clock, MapPin, Settings } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 import { trips, alerts, crewMembers } from '../data/mockData';
 import OperationsCenterView from './controller/OperationsCenterView';
 import ActiveCrewView from './controller/ActiveCrewView';
@@ -146,42 +145,35 @@ export default function ControllerView() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            Reserve Crew Available
-          </h3>
-          <div className="space-y-3">
-            {reserveCrew.map((crew) => (
-              <div key={crew.id} className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900">{crew.name}</div>
-                  <div className="text-sm text-gray-600">{crew.role}</div>
-                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                    <MapPin className="w-3 h-3" />
-                    {crew.base} | {crew.qualification}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-green-600 font-medium">RESTED</div>
-                  <div className="text-xs text-gray-500">2hr call-out</div>
-                </div>
-                <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">
-                  Call
-                </button>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Users className="w-5 h-5 text-blue-600" />
+          Reserve Crew Available
+        </h3>
+        <div className="space-y-3">
+          {reserveCrew.map((crew) => (
+            <div key={crew.id} className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-blue-600" />
               </div>
-            ))}
-          </div>
+              <div className="flex-1">
+                <div className="font-semibold text-gray-900">{crew.name}</div>
+                <div className="text-sm text-gray-600">{crew.role}</div>
+                <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                  <MapPin className="w-3 h-3" />
+                  {crew.base} | {crew.qualification}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-green-600 font-medium">RESTED</div>
+                <div className="text-xs text-gray-500">2hr call-out</div>
+              </div>
+              <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">
+                Call
+              </button>
+            </div>
+          ))}
         </div>
-
-        <ConversationalAI
-          role="controller"
-          context="Real-time Operations Control"
-        />
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">

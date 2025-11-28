@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Users, DollarSign, AlertTriangle, TrendingDown, Sparkles, Settings } from 'lucide-react';
-import ConversationalAI from '../components/ConversationalAI';
 import { crewMembers, trips } from '../data/mockData';
 import RosterBuilderView from './scheduler/RosterBuilderView';
 import CrewManagementView from './scheduler/CrewManagementView';
@@ -137,51 +136,44 @@ export default function SchedulerView({ activeView = 'dashboard', onViewChange }
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-purple-600" />
-            Uncovered Trips - Priority Action Required
-          </h3>
-          <div className="space-y-3">
-            {uncoveredTrips.map((trip) => (
-              <div key={trip.id} className="flex items-center gap-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900">{trip.id}</div>
-                  <div className="text-sm text-gray-600">{trip.route}</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {new Date(trip.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-gray-600">Credit: {trip.creditHours}h</div>
-                  {trip.international && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full mt-1 inline-block">
-                      International
-                    </span>
-                  )}
-                </div>
-                <button className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors">
-                  Assign
-                </button>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-purple-600" />
+          Uncovered Trips - Priority Action Required
+        </h3>
+        <div className="space-y-3">
+          {uncoveredTrips.map((trip) => (
+            <div key={trip.id} className="flex items-center gap-4 p-4 bg-red-50 rounded-lg border border-red-200">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
-            ))}
-          </div>
-          {uncoveredTrips.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-              <p>All trips are covered!</p>
+              <div className="flex-1">
+                <div className="font-semibold text-gray-900">{trip.id}</div>
+                <div className="text-sm text-gray-600">{trip.route}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {new Date(trip.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-gray-600">Credit: {trip.creditHours}h</div>
+                {trip.international && (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full mt-1 inline-block">
+                    International
+                  </span>
+                )}
+              </div>
+              <button className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors">
+                Assign
+              </button>
             </div>
-          )}
+          ))}
         </div>
-
-        <ConversationalAI
-          role="scheduler"
-          context="December 2024 Roster Planning"
-        />
+        {uncoveredTrips.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <p>All trips are covered!</p>
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-4 gap-4">
