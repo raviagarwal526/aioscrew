@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { UserRole } from './types';
 import LandingPage from './components/LandingPage';
-import DashboardLayout from './components/DashboardLayout';
+import SmartLayout from './components/SmartLayout';
 import DatabaseInit from './components/DatabaseInit';
 import CrewMemberViewComplete from './views/CrewMemberViewComplete';
 import SchedulerView from './views/SchedulerView';
@@ -15,8 +15,10 @@ import { LogOut } from 'lucide-react';
 
 function App() {
     const [dbInitialized, setDbInitialized] = useState(false);
-    const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
+    const [currentRole, setCurrentRole] = useState<UserRole | null>('crew-member');
     const [activeView, setActiveView] = useState('dashboard');
+    const [showDashboard, setShowDashboard] = useState(false);
+    const [dashboardType, setDashboardType] = useState<string | null>(null);
 
     useEffect(() => {
       if (!dbInitialized || typeof window === 'undefined') return;
@@ -35,10 +37,36 @@ function App() {
   const handleSelectRole = (role: UserRole) => {
     setCurrentRole(role);
     setActiveView('dashboard');
+    setShowDashboard(false);
+    setDashboardType(null);
   };
 
   const handleLogout = () => {
     setCurrentRole(null);
+    setShowDashboard(false);
+    setDashboardType(null);
+  };
+
+  const handleDashboardTrigger = (type: string, context: any) => {
+    setDashboardType(type);
+    setShowDashboard(true);
+    // Set the appropriate view based on the type
+    if (type === 'schedule') {
+      setActiveView('schedule');
+    } else if (type === 'payroll' || type === 'claims') {
+      setActiveView('pay');
+    } else if (type === 'training') {
+      setActiveView('dashboard');
+    } else if (type === 'bidding') {
+      setActiveView('dashboard');
+    } else {
+      setActiveView('dashboard');
+    }
+  };
+
+  const handleCloseDashboard = () => {
+    setShowDashboard(false);
+    setDashboardType(null);
   };
 
   const roleViews: Record<UserRole, { component: JSX.Element; title: string }> = {
@@ -81,7 +109,7 @@ function App() {
   }
 
   if (!currentRole) {
-    return <LandingPage onSelectRole={handleSelectRole} />;
+    return <DatabaseInit onComplete={() => setDbInitialized(true)} />;
   }
 
   const currentView = roleViews[currentRole];
@@ -119,28 +147,20 @@ function App() {
     );
   }
 
-  // Get AI context for crew-member role
-  const getAIContext = () => {
-    if (currentRole === 'crew-member') {
-      // This will be passed from the view component if needed
-      return undefined;
-    }
-    return undefined;
-  };
-
+  // Chat-first interface: Use SmartLayout instead of DashboardLayout
+  // If dashboard is not shown, SmartLayout renders just the chat
+  // If dashboard is shown, SmartLayout renders split view
   return (
-    <DashboardLayout
+    <SmartLayout
       role={currentRole}
       onLogout={handleLogout}
-      title={currentView.title}
+      dashboardComponent={showDashboard ? currentView.component : undefined}
+      showDashboard={showDashboard}
+      onCloseDashboard={handleCloseDashboard}
       activeView={activeView}
       onViewChange={setActiveView}
-      aiContext={getAIContext()}
-      showAIAssistant={true}
-      aiAssistantDefaultWidth={40}
-    >
-      {currentView.component}
-    </DashboardLayout>
+      onDashboardTrigger={handleDashboardTrigger}
+    />
   );
 }
 
